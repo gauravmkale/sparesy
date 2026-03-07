@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "companies")
@@ -29,6 +30,7 @@ public class Company {
     private String email;
 
     // Password will be stored as a BCrypt hash
+    @JsonIgnore
     @Column(nullable = false, length = 255)
     private String password;
 

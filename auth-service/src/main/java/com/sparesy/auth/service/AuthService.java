@@ -1,5 +1,6 @@
 package com.sparesy.auth.service;
 
+import com.sparesy.auth.dto.UpdateCompanyRequest;
 import com.sparesy.auth.dto.LoginRequest;
 import com.sparesy.auth.dto.LoginResponse;
 import com.sparesy.auth.dto.RegisterRequest;
@@ -66,6 +67,10 @@ public class AuthService {
             throw new RuntimeException("Email already registered");
         }
 
+        boolean gstExists = companyRepository.findByGstNumber(request.getGstNumber()).isPresent();
+        if(gstExists){
+            throw new RuntimeException("GST number already registered");
+        }
         // Step 2 — hash the password before saving
         // NEVER save plain text passwords
         String hashedPassword = passwordEncoder.encode(request.getPassword());
@@ -86,6 +91,34 @@ public class AuthService {
             .isActive(true)
             .build();
 
+        companyRepository.save(company);
+    }
+
+    //Get company by id
+    public Company getCompanyById(Long id){
+        return companyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Company not found with id: "+id));
+    }
+
+    //Update company details
+    public void updateCompany(Long id, UpdateCompanyRequest request){
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Company not found with id: "+id));
+
+        company.setAddress(request.getAddress());
+        company.setContactNumber(request.getContactNumber());
+        company.setContactPersonName(request.getContactPersonName());
+        company.setPincode(request.getPinCode());
+
+        companyRepository.save(company);
+    }
+
+    // Deactivate company
+    public void deactivateCompany(Long id) {
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));
+
+        company.setIsActive(false);
         companyRepository.save(company);
     }
 }

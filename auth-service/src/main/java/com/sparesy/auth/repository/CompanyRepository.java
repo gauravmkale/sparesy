@@ -18,6 +18,8 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     //It creates a runtime proxy class that implements it.
     Optional<Company> findByEmail(String email);
 
+    Optional<Company> findByGstNumber(String gstNumber);
+
     List<Company> findByType(CompanyType type);
 
 }
