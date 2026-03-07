@@ -1,69 +1,353 @@
-# Sparesy — Progress Log
-**Last Updated:** 7 March 2026  
-**Focus:** Backend — auth-service
+# Auth Service — Documentation
+**Sparesy | Private Client & Supplier Portal**  
+**Port:** 8081  
+**Version:** 1.0.0
 
 ---
 
-## ✅ COMPLETED — Auth Service (port 8081)
+## What is Auth Service?
 
-### Project Structure
-- Root `sparesy/` folder created
-- Parent `pom.xml` with two modules: `auth-service` and `core-service`
-- Java 17 (via Homebrew), Maven 3.9.12, MySQL 8
+Auth service is one of two backend services in Sparesy. Its only responsibility is **identity** — who are you, and are you allowed in?
 
-### All Files Built and Working
+It handles:
+- Registering new company accounts (Manufacturer, Client, Supplier)
+- Logging in and issuing JWT tokens
+- Managing company details (view, update, deactivate)
+
+It does **not** handle any business logic — that lives in core-service (port 8082).
+
+---
+
+## How it fits into the system
+
+```
+Browser (Angular — port 4200)
+        │
+        │  POST /api/auth/login   → get JWT token
+        │  POST /api/auth/register → create account
+        ▼
+Auth Service (port 8081)
+        │
+        │  validates credentials
+        │  generates JWT token
+        ▼
+MySQL (port 3306) — sparesy database — companies table
+```
+
+Once the user has a JWT token, **every future request goes directly to core-service (port 8082)** — not through auth-service. Auth-service is only involved at login and registration.
+
+---
+
+## JWT Token
+
+When login is successful, auth-service returns a signed JWT token. This token contains:
+
+```json
+{
+  "companyId": 3,
+  "companyType": "CLIENT",
+  "exp": 1772956872
+}
+```
+
+Angular stores this token and attaches it to every API request as:
+```
+Authorization: Bearer eyJhbGci...
+```
+
+Core-service reads `companyId` and `companyType` from this token on every request — this is how multi-tenancy works. Every database query is filtered by `companyId`.
+
+**Token expiry:** 24 hours (86400000ms)
+
+---
+
+## Company Types
+
+There are three types of companies in Sparesy:
+
+| Type | Role |
+|---|---|
+| `MANUFACTURER` | Owns and operates the platform. Full access to everything. |
+| `CLIENT` | Submits PCB projects, reviews quotes, tracks production. |
+| `SUPPLIER` | Receives component requests, manages their catalog, submits quotes. |
+
+After login, Angular reads `companyType` from the JWT and redirects:
+```
+MANUFACTURER → /manufacturer
+CLIENT       → /client
+SUPPLIER     → /supplier
+```
+
+---
+
+## Folder Structure
 
 ```
 auth-service/
-├── pom.xml
+├── pom.xml                          → Maven dependencies
 └── src/main/
     ├── java/com/sparesy/auth/
-    │   ├── AuthServiceApplication.java      ✅
+    │   │
+    │   ├── AuthServiceApplication.java     → Entry point, starts on port 8081
+    │   │
     │   ├── enums/
-    │   │   └── CompanyType.java             ✅  (MANUFACTURER, CLIENT, SUPPLIER)
+    │   │   └── CompanyType.java            → MANUFACTURER, CLIENT, SUPPLIER
+    │   │
     │   ├── model/
-    │   │   └── Company.java                 ✅  (JPA Entity → maps to companies table)
+    │   │   └── Company.java                → JPA Entity → maps to companies table in MySQL
+    │   │
     │   ├── dto/
-    │   │   ├── LoginRequest.java            ✅  (email, password)
-    │   │   ├── LoginResponse.java           ✅  (token, companyId, companyType)
-    │   │   └── RegisterRequest.java         ✅  (all company fields)
+    │   │   ├── LoginRequest.java           → { email, password }
+    │   │   ├── LoginResponse.java          → { token, companyId, companyType }
+    │   │   ├── RegisterRequest.java        → all company fields with validation
+    │   │   ├── UpdateCompanyRequest.java   → { address, contactNumber, contactPersonName, pinCode }
+    │   │   └── CompanyResponse.java        → company fields WITHOUT password
+    │   │
     │   ├── repository/
-    │   │   └── CompanyRepository.java       ✅  (findByEmail, findByType)
-    │   ├── security/
-    │   │   ├── JwtUtil.java                 ✅  (generateToken, validateToken, extract methods)
-    │   │   └── SecurityConfig.java          ✅  (permits /api/auth/**, blocks everything else)
+    │   │   └── CompanyRepository.java      → database queries (Spring generates implementation)
+    │   │
     │   ├── service/
-    │   │   └── AuthService.java             ✅  (login, register with BCrypt hashing)
-    │   └── controller/
-    │       └── AuthController.java          ✅  (POST /api/auth/login, POST /api/auth/register)
+    │   │   └── AuthService.java            → all business logic
+    │   │
+    │   ├── controller/
+    │   │   └── AuthController.java         → HTTP endpoints
+    │   │
+    │   ├── security/
+    │   │   ├── JwtUtil.java                → generate, validate, extract JWT
+    │   │   └── SecurityConfig.java         → permit /api/auth/**, block everything else
+    │   │
+    │   └── exception/
+    │       ├── ErrorResponse.java          → { status, message }
+    │       └── GlobalExceptionHandler.java → converts exceptions to clean JSON responses
+    │
     └── resources/
-        └── application.properties           ✅
+        └── application.properties          → port, database, JWT config
 ```
 
-### Company Fields (RegisterRequest + Company entity)
-| Field | Type | Notes |
-|---|---|---|
-| name | String | Company name |
-| email | String | Unique — used as login username |
-| password | String | BCrypt hashed, never plain text |
-| type | CompanyType | MANUFACTURER / CLIENT / SUPPLIER |
-| pinCode | String | 6 digits |
-| contactNumber | String | 10 digits |
-| gstNumber | String | Unique, 15 chars |
-| address | String | Full address |
-| contactPersonName | String | Main point of contact |
-| isActive | Boolean | Manufacturer can deactivate |
-| createdAt | LocalDateTime | Auto-set by Hibernate |
+---
 
-### Endpoints Working ✅
-| Method | URL | What it does |
-|---|---|---|
-| POST | /api/auth/register | Creates a new company account |
-| POST | /api/auth/login | Returns JWT token on success |
+## API Endpoints
 
-### Confirmed Working Test
+### POST /api/auth/register
+Creates a new company account. Only called by the manufacturer when onboarding a new client or supplier.
+
+**Request Body:**
+```json
+{
+  "name": "ABC Electronics",
+  "email": "abc@client.com",
+  "password": "client123",
+  "type": "CLIENT",
+  "pinCode": "400001",
+  "contactNumber": "9123456780",
+  "gstNumber": "27AAPFU0939F1ZW",
+  "address": "456 Park Street, Mumbai",
+  "contactPersonName": "Raj Sharma"
+}
+```
+
+**Response 201 — Created:**
+```
+(empty body)
+```
+
+**Response 400 — Validation Error:**
+```json
+{
+  "email": "Email must be valid",
+  "password": "Password must be at least 6 characters",
+  "pinCode": "Pin code must be 6 digits"
+}
+```
+
+**Response 400 — Duplicate Email:**
+```json
+{"status": 400, "message": "Email already registered"}
+```
+
+**Response 400 — Duplicate GST:**
+```json
+{"status": 400, "message": "GST number already registered"}
+```
+
+---
+
+### POST /api/auth/login
+Verifies credentials and returns a JWT token.
+
+**Request Body:**
+```json
+{
+  "email": "abc@client.com",
+  "password": "client123"
+}
+```
+
+**Response 200 — Success:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "companyId": 3,
+  "companyType": "CLIENT"
+}
+```
+
+**Response 400 — Wrong credentials:**
+```json
+{"status": 400, "message": "Invalid email or password"}
+```
+
+**Response 400 — Deactivated account:**
+```json
+{"status": 400, "message": "Account is deactivated"}
+```
+
+---
+
+### GET /api/auth/companies/{id}
+Returns company details by ID. Password is never included in the response.
+
+**Response 200:**
+```json
+{
+  "id": 3,
+  "name": "ABC Electronics",
+  "email": "abc@client.com",
+  "type": "CLIENT",
+  "pinCode": "400001",
+  "contactNumber": "9123456780",
+  "gstNumber": "27AAPFU0939F1ZW",
+  "address": "456 Park Street, Mumbai",
+  "contactPersonName": "Raj Sharma",
+  "isActive": true,
+  "createdAt": "2026-03-07T13:27:45"
+}
+```
+
+---
+
+### PUT /api/auth/companies/{id}
+Updates a company's contact details.
+
+**Request Body:**
+```json
+{
+  "address": "789 New Street, Delhi",
+  "contactNumber": "9999999999",
+  "contactPersonName": "Raj Updated",
+  "pinCode": "110001"
+}
+```
+
+**Response 200:** (empty body)
+
+---
+
+### PUT /api/auth/companies/{id}/deactivate
+Deactivates a company account. Deactivated companies cannot log in.
+
+**Response 200:** (empty body)
+
+---
+
+## Validation Rules
+
+| Field | Rule |
+|---|---|
+| name | Required, max 100 characters |
+| email | Required, must be valid email format |
+| password | Required, minimum 6 characters |
+| type | Required, must be MANUFACTURER / CLIENT / SUPPLIER |
+| pinCode | Required, exactly 6 digits |
+| contactNumber | Required, exactly 10 digits |
+| gstNumber | Required, exactly 15 characters, must be unique |
+| address | Required |
+| contactPersonName | Required |
+
+---
+
+## Security
+
+- All `/api/auth/**` endpoints are **public** — no token required
+- Every other endpoint requires a valid JWT token
+- Passwords are hashed with **BCrypt** before storing — never stored as plain text
+- JWT tokens are signed with HMAC-SHA256
+- JWT secret must be 32+ characters (256 bits minimum)
+- Sessions are **stateless** — no server-side session storage
+
+---
+
+## Database
+
+Auth-service connects to the `sparesy` MySQL database. Hibernate automatically creates and updates the `companies` table based on the `Company.java` entity.
+
+**companies table columns:**
+```
+id                  BIGINT AUTO_INCREMENT PRIMARY KEY
+name                VARCHAR(100) NOT NULL
+email               VARCHAR(100) NOT NULL UNIQUE
+password            VARCHAR(255) NOT NULL
+type                VARCHAR(20) NOT NULL
+pin_code            VARCHAR(10) NOT NULL
+contact_number      VARCHAR(15) NOT NULL
+gst_number          VARCHAR(15) NOT NULL UNIQUE
+address             VARCHAR(255) NOT NULL
+contact_person_name VARCHAR(100) NOT NULL
+is_active           TINYINT(1) NOT NULL DEFAULT 1
+created_at          DATETIME
+```
+
+---
+
+## How to Run
+
+**Prerequisites:**
+- Java 17 installed via Homebrew
+- Maven 3.6+
+- MySQL 8 running with `sparesy` database created
+
+**Step 1 — Set Java 17 (required every new terminal session):**
 ```bash
-# Register
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export PATH=$JAVA_HOME/bin:$PATH
+```
+
+**Step 2 — Start the service:**
+```bash
+cd sparesy/auth-service
+mvn spring-boot:run
+```
+
+**Step 3 — Verify it's running:**
+```
+Started AuthServiceApplication in X seconds
+Tomcat started on port 8081
+```
+
+---
+
+## application.properties
+
+```properties
+server.port=8081
+
+spring.datasource.url=jdbc:mysql://localhost:3306/sparesy?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=root
+spring.datasource.password=yourpassword
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+jwt.secret=sparesy-super-secret-key-for-jwt-signing-2026
+jwt.expiration=86400000
+```
+
+---
+
+## Quick Test Commands
+
+```bash
+# Register a new client
 curl -X POST http://localhost:8081/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -83,122 +367,24 @@ curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"abc@client.com","password":"client123"}'
 
-# Response
-{"token":"eyJhbGci...","companyId":3,"companyType":"CLIENT"}
-```
+# Get company by ID
+curl http://localhost:8081/api/auth/companies/3
 
----
+# Update company
+curl -X PUT http://localhost:8081/api/auth/companies/3 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "789 New Street, Delhi",
+    "contactNumber": "9999999999",
+    "contactPersonName": "Raj Updated",
+    "pinCode": "110001"
+  }'
 
-## 🔴 NOT STARTED — Core Service (port 8082)
+# Deactivate company
+curl -X PUT http://localhost:8081/api/auth/companies/3/deactivate
 
-### What needs to be built:
-```
-core-service/
-├── pom.xml
-└── src/main/java/com/sparesy/core/
-    ├── CoreServiceApplication.java
-    ├── enums/          → ProjectStatus, RequestStatus, QuoteStatus, ProductionStage, TransactionType
-    ├── entity/         → 9 entities (Company, Project, Component, SupplierComponent,
-    │                      Request, Quote, ProductionOrder, Inventory, Transaction)
-    ├── dto/
-    │   ├── request/    → one per entity
-    │   └── response/   → one per entity
-    ├── repository/     → one per entity
-    ├── service/        → one per entity
-    ├── controller/     → one per entity
-    ├── workflow/       → WorkflowService + 3 events
-    ├── websocket/      → WebSocketConfig + NotificationService
-    └── security/       → JwtFilter + SecurityConfig + CompanyContext
-```
-
-### Next Steps in Order:
-1. Set up core-service pom.xml and folder structure
-2. Write all 9 entity classes → Hibernate auto-creates tables
-3. Write JWT filter → validates token on every request
-4. Write SecurityConfig for core-service
-5. Write CompanyContext → holds companyId for current request
-6. Build Company endpoints → list clients, list suppliers
-7. Build Project endpoints → submit, list, detail, status update
-8. Build Component + SupplierComponent endpoints
-9. Build Request + Quote endpoints
-10. Build Production + Inventory endpoints
-11. Build WorkflowService + events
-12. Build WebSocket notifications
-
----
-
-## 🐛 Bugs Resolved
-
-| Bug | Root Cause | Fix |
-|---|---|---|
-| Lombok getters not found | Annotation processor not configured | Added `maven-compiler-plugin` with Lombok path + version `1.18.36` |
-| Java 25 incompatible | Spring Boot 3.2 targets Java 17 | Installed Java 17 via Homebrew, set JAVA_HOME |
-| `AuthServiceApplication` not found | File placed in `src/main/` instead of `src/main/java/com/sparesy/auth/` | Moved to correct path |
-| MySQL Public Key Retrieval error | MySQL 8 security setting | Added `allowPublicKeyRetrieval=true` to datasource URL |
-| Login — Invalid email or password | Manually inserted BCrypt hash didn't match password | Used register endpoint to create user instead |
-| WeakKeyException on JWT | Secret key too short (184 bits, needs 256+) | Updated secret to 48 character string in application.properties |
-
----
-
-## ⚙️ Environment
-
-| Tool | Version | Notes |
-|---|---|---|
-| Java | 17.0.18 | Via Homebrew — set JAVA_HOME each session |
-| Maven | 3.9.12 | Use `mvn` directly, not `./mvnw` |
-| MySQL | 8.x | Database: `sparesy` |
-| Spring Boot | 3.2.0 | |
-| JWT Secret | 48+ chars | `sparesy-super-secret-key-for-jwt-signing-2026` |
-
-**To start auth-service:**
-```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-export PATH=$JAVA_HOME/bin:$PATH
-cd sparesy/auth-service
-mvn spring-boot:run
-```
-
----
-
-## 🧠 Key Concepts Learned
-
-**Spring Boot layer order — always build in this sequence:**
-```
-Entity → Repository → Service → Controller
-```
-
-**DTO rule:**
-- Never expose Entity directly over the API
-- Request DTO = what comes in
-- Response DTO = what goes out
-- `confirmPassword` = frontend only, never sent to backend
-
-**Lombok — requires annotation processor in pom.xml:**
-- `@Getter` / `@Setter` → getters and setters
-- `@Builder` → chain-style object construction
-- `@AllArgsConstructor` → constructor with all fields
-- `@NoArgsConstructor` → empty constructor
-
-**JWT:**
-- Contains: `companyId`, `companyType`, `exp`
-- Secret must be 32+ characters (256 bits minimum)
-- Generated on login, validated on every core-service request
-
-**BCrypt password hashing:**
-```java
-// Store
-passwordEncoder.encode("plain text")  →  "$2a$10$..."
-
-// Verify (never decrypt — re-hash and compare)
-passwordEncoder.matches("plain text", "$2a$10$...")  →  true/false
-```
-
-**Multi-tenancy rule — most important rule in the entire project:**
-```java
-// ALWAYS filter by companyId from JWT
-Long companyId = CompanyContext.getCurrentCompanyId();
-repository.findByClientCompanyId(companyId);
-
-// NEVER do this
-repository.findAll();
+# Test validation (should return field errors)
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"","email":"bad-email","password":"123","type":"CLIENT"}'
 ```
