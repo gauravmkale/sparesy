@@ -33,7 +33,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Allow login and register without any token
                 // Anyone can hit these endpoints
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui/index.html",
+                    "/api-docs/**",
+                    "/v3/api-docs/**"
+                ).permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated());
 
