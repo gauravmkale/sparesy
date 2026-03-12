@@ -67,6 +67,14 @@ public class SecurityConfig {
              * Every endpoint in this service requires authentication.
              */
             .authorizeHttpRequests(auth -> auth
+                // Permit Swagger UI paths — no JWT needed to view the docs
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui/index.html",
+                    "/api-docs/**",
+                    "/v3/api-docs/**"
+                ).permitAll()
+                // Everything else requires a valid JWT
                 .anyRequest().authenticated()
             )
             /*
