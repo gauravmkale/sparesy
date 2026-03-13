@@ -1,5 +1,6 @@
 package com.sparesy.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sparesy.core.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "transactions")
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Transaction {
 
     @Id

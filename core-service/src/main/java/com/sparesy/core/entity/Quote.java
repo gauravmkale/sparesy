@@ -1,5 +1,6 @@
 package com.sparesy.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sparesy.core.enums.QuoteStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "quotes")
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Quote {
 
     @Id

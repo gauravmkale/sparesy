@@ -1,5 +1,6 @@
 package com.sparesy.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sparesy.core.enums.ProductionStage;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "production_orders")
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProductionOrder {
 
     @Id

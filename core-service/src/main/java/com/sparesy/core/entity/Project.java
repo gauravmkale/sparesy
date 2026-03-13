@@ -1,5 +1,6 @@
 package com.sparesy.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sparesy.core.enums.ProjectStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "projects")
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Project {
     //Even if we dont write @Column hibernate would still maptables according to the columns automatically, 
     // but we do that so that we can add constraints to our columns
