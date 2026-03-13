@@ -7,6 +7,9 @@ import com.sparesy.core.enums.QuoteStatus;
 import com.sparesy.core.repository.QuoteRepository;
 import org.springframework.stereotype.Service;
 
+import com.sparesy.core.workflow.events.QuoteApprovedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,12 +18,17 @@ public class QuoteService {
 
     private final QuoteRepository quoteRepository;
     private final ProjectService projectService;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     public QuoteService(QuoteRepository quoteRepository,
-                        ProjectService projectService) {
-        this.quoteRepository = quoteRepository;
-        this.projectService = projectService;
-    }
+                    ProjectService projectService,
+                    ApplicationEventPublisher eventPublisher) {
+    this.quoteRepository = quoteRepository;
+    this.projectService = projectService;
+    this.eventPublisher = eventPublisher;
+}
+
 
     // Manufacturer creates a quote draft for a project
     public Quote createQuote(QuoteRequestDTO dto) {
@@ -59,11 +67,16 @@ public class QuoteService {
 
     // Client approves the quote
     public Quote approveQuote(Long id) {
-        Quote quote = getQuoteById(id);
-        quote.setStatus(QuoteStatus.APPROVED);
-        quote.setClientResponseAt(LocalDateTime.now());
-        return quoteRepository.save(quote);
-    }
+    Quote quote = getQuoteById(id);
+    quote.setStatus(QuoteStatus.APPROVED);
+    quote.setClientResponseAt(LocalDateTime.now());
+    Quote saved = quoteRepository.save(quote);
+
+    // Fire event — WorkflowService creates production order and records transactions
+    eventPublisher.publishEvent(new QuoteApprovedEvent(this, saved.getProject(), saved));
+
+    return saved;
+}
 
     // Client rejects the quote with an optional note
     public Quote rejectQuote(Long id, String note) {

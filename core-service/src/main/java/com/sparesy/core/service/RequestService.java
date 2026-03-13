@@ -9,6 +9,9 @@ import com.sparesy.core.enums.RequestStatus;
 import com.sparesy.core.repository.RequestRepository;
 import org.springframework.stereotype.Service;
 
+import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,17 +23,20 @@ public class RequestService {
     private final ProjectService projectService;
     private final CompanyService companyService;
     private final ComponentService componentService;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     public RequestService(RequestRepository requestRepository,
-                          ProjectService projectService,
-                          CompanyService companyService,
-                          ComponentService componentService) {
-        this.requestRepository = requestRepository;
-        this.projectService = projectService;
-        this.companyService = companyService;
-        this.componentService = componentService;
-    }
-
+                      ProjectService projectService,
+                      CompanyService companyService,
+                      ComponentService componentService,
+                      ApplicationEventPublisher eventPublisher) {
+    this.requestRepository = requestRepository;
+    this.projectService = projectService;
+    this.companyService = companyService;
+    this.componentService = componentService;
+    this.eventPublisher = eventPublisher;
+}
     // Manufacturer sends a component request to a supplier for a specific project
     public Request sendRequest(RequestRequestDTO dto) {
         Project project = projectService.getProjectById(dto.getProjectId());
@@ -75,10 +81,19 @@ public class RequestService {
 
     // Manufacturer approves a supplier's quote
     public Request approveRequest(Long id) {
-        Request request = getRequestById(id);
-        request.setStatus(RequestStatus.APPROVED);
-        return requestRepository.save(request);
+    Request request = getRequestById(id);
+    request.setStatus(RequestStatus.APPROVED);
+    Request saved = requestRepository.save(request);
+
+    // Check if all requests for this project are now approved
+    // If yes — fire event so WorkflowService advances project to QUOTED
+    if (allRequestsApproved(request.getProject().getId())) {
+        eventPublisher.publishEvent(
+                new AllRequestsApprovedEvent(this, request.getProject()));
     }
+
+    return saved;
+}
 
     // Manufacturer rejects a supplier's quote
     public Request rejectRequest(Long id) {
