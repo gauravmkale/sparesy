@@ -67,4 +67,9 @@ public class ProjectService {
         project.setStatus(status);
         return projectRepository.save(project);
     }
+
+        // Saves a project entity directly — used by FileController after setting file paths
+    public Project saveProject(Project project) {
+        return projectRepository.save(project);
+    }
 }
