@@ -4,6 +4,8 @@ import com.sparesy.core.entity.ProductionOrder;
 import com.sparesy.core.entity.Project;
 import com.sparesy.core.enums.ProductionStage;
 import com.sparesy.core.repository.ProductionOrderRepository;
+import com.sparesy.core.websocket.NotificationService;
+
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,11 +16,15 @@ public class ProductionService {
 
     private final ProductionOrderRepository productionOrderRepository;
     private final ProjectService projectService;
+    private final NotificationService notificationService;
+
 
     public ProductionService(ProductionOrderRepository productionOrderRepository,
-                             ProjectService projectService) {
+                             ProjectService projectService,
+                            NotificationService notificationService) {
         this.productionOrderRepository = productionOrderRepository;
         this.projectService = projectService;
+        this.notificationService=notificationService;
     }
 
     // Auto-called by WorkflowService when client approves a quote
@@ -64,7 +70,14 @@ public class ProductionService {
             order.setActualEnd(LocalDateTime.now());
         }
 
-        return productionOrderRepository.save(order);
+        ProductionOrder saved = productionOrderRepository.save(order);
+
+        notificationService.notifyStageAdvanced(
+            order.getProject().getClient().getId(),
+            order.getProject().getId(),
+            order.getCurrentStage().name()
+        );
+        return saved;
     }
 
     // Manufacturer views all active production orders

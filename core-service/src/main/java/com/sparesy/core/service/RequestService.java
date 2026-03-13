@@ -7,6 +7,8 @@ import com.sparesy.core.entity.Project;
 import com.sparesy.core.entity.Request;
 import com.sparesy.core.enums.RequestStatus;
 import com.sparesy.core.repository.RequestRepository;
+import com.sparesy.core.websocket.NotificationService;
+
 import org.springframework.stereotype.Service;
 
 import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
@@ -24,18 +26,22 @@ public class RequestService {
     private final CompanyService companyService;
     private final ComponentService componentService;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationService notificationService;
+
 
 
     public RequestService(RequestRepository requestRepository,
                       ProjectService projectService,
                       CompanyService companyService,
                       ComponentService componentService,
-                      ApplicationEventPublisher eventPublisher) {
+                      ApplicationEventPublisher eventPublisher,
+                      NotificationService notificationService) {
     this.requestRepository = requestRepository;
     this.projectService = projectService;
     this.companyService = companyService;
     this.componentService = componentService;
     this.eventPublisher = eventPublisher;
+    this.notificationService = notificationService;
 }
     // Manufacturer sends a component request to a supplier for a specific project
     public Request sendRequest(RequestRequestDTO dto) {
@@ -50,7 +56,14 @@ public class RequestService {
         request.setQuantityNeeded(dto.getQuantityNeeded());
         request.setStatus(RequestStatus.PENDING);
 
-        return requestRepository.save(request);
+        Request saved = requestRepository.save(request);
+
+        notificationService.notifyNewRequest(
+            saved.getSupplier().getId(),
+            saved.getId()
+        );
+
+        return saved;
     }
 
     // Fetch single request — used internally
