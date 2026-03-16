@@ -21,10 +21,10 @@ export class AuthService {
         const t = this.tokenService.getToken();
         const payload = jwtDecode(t);
         if (!payload) return null;
-        return { 
-            id: payload.companyId, 
-            role: payload.companyType?.toLowerCase(), 
-            exp: payload.exp 
+        return {
+            id: payload.companyId,
+            role: payload.companyType?.toLowerCase(),
+            exp: payload.exp
         };
     }
 
@@ -47,7 +47,7 @@ export class AuthService {
             }))
     }
 
-    register(payload: { name: string, email: string, password: string, role: string }) {
+    register(payload: any) {
         return this.http.post(`${this.Api}/register`, payload);
     }
 

@@ -1,0 +1,300 @@
+<div class="flex items-center justify-center min-h-screen w-full px-6">
+    <div class="w-full max-w-md">
+
+        <form [formGroup]="registerForm" (ngSubmit)="onSubmit()"
+            class="relative border border-gray-800 bg-[#111111]/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl shadow-black/40">
+
+            <!-- Step indicator -->
+            <div class="flex items-center justify-between mb-8">
+                <ng-container *ngFor="let step of steps; let i = index; let last = last">
+                    <div class="flex flex-col items-center z-10">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-500"
+                            [ngClass]="{
+                                'bg-teal-500 text-white shadow-lg shadow-teal-500/30': currentStep >= step.number,
+                                'bg-gray-800 text-gray-500': currentStep < step.number
+                            }">
+                            <span *ngIf="currentStep <= step.number">{{ step.number }}</span>
+                            <svg *ngIf="currentStep > step.number" class="w-4 h-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <span class="text-[11px] mt-1.5 font-medium transition-colors duration-300"
+                            [ngClass]="{ 'text-teal-400': currentStep >= step.number, 'text-gray-600': currentStep < step.number }">
+                            {{ step.label }}
+                        </span>
+                    </div>
+                    <div *ngIf="!last" class="flex-1 h-[2px] -mt-4 mx-1 rounded-full transition-all duration-500"
+                        [ngClass]="{
+                            'bg-teal-500/60': currentStep > step.number,
+                            'bg-gray-800': currentStep <= step.number
+                        }">
+                    </div>
+                </ng-container>
+            </div>
+
+            <!-- Step content container -->
+            <div class="overflow-hidden">
+
+                <!-- STEP 1 — Company -->
+                <div *ngIf="currentStep === 1" [@slideStep]="slideAnimation" class="space-y-5">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-white">Company Details</h2>
+                        <p class="text-gray-500 text-sm mt-1">Tell us about your company</p>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Company Name</label>
+                        <input type="text" formControlName="companyName" placeholder="Enter company name"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200" />
+                        <div class="overflow-hidden" *ngIf="shouldShowError('companyName')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['companyName'].errors?.['required']">Company name is
+                                    required</span>
+                                <span *ngIf="registerForm.controls['companyName'].errors?.['minlength']">Must be at
+                                    least 2 characters</span>
+                                <span *ngIf="registerForm.controls['companyName'].errors?.['maxlength']">Must be under
+                                    100 characters</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Company Type</label>
+                        <select formControlName="companyType"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200 appearance-none cursor-pointer">
+                            <option value="" disabled class="bg-[#1a1a1a]">Select type</option>
+                            <option value="CLIENT" class="bg-[#1a1a1a]">Client</option>
+                            <option value="SUPPLIER" class="bg-[#1a1a1a]">Supplier</option>
+                        </select>
+                        <div class="overflow-hidden" *ngIf="shouldShowError('companyType')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">Company type is required</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">GST Number</label>
+                        <input type="text" formControlName="gstNumber" placeholder="e.g. 22AAAAA0000A1Z5"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200 uppercase" />
+                        <div class="overflow-hidden" *ngIf="shouldShowError('gstNumber')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['gstNumber'].errors?.['required']">GST number is
+                                    required</span>
+                                <span *ngIf="registerForm.controls['gstNumber'].errors?.['pattern']">Enter a valid
+                                    15-char GST number</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 2 — Account -->
+                <div *ngIf="currentStep === 2" [@slideStep]="slideAnimation" class="space-y-5">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-white">Account Setup</h2>
+                        <p class="text-gray-500 text-sm mt-1">Create your login credentials</p>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Email</label>
+                        <input type="email" formControlName="email" placeholder="you@company.com"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200" />
+                        <div class="overflow-hidden" *ngIf="shouldShowError('email')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['email'].errors?.['required']">Email is
+                                    required</span>
+                                <span *ngIf="registerForm.controls['email'].errors?.['email']">Enter a valid email
+                                    address</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Password</label>
+                        <input type="password" formControlName="password" placeholder="Create a strong password"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200" />
+                        <div class="overflow-hidden" *ngIf="shouldShowError('password')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['password'].errors?.['required']">Password is
+                                    required</span>
+                                <span *ngIf="registerForm.controls['password'].errors?.['minlength']">Minimum 8
+                                    characters</span>
+                                <span *ngIf="registerForm.controls['password'].errors?.['pattern']">
+                                    Must include uppercase, lowercase, digit &amp; special character
+                                </span>
+                            </p>
+                        </div>
+
+                        <!-- Password requirements checklist -->
+                        <div class="mt-3 space-y-1" *ngIf="registerForm.controls['password'].dirty">
+                            <p class="text-[11px] flex items-center gap-1.5"
+                                [ngClass]="{ 'text-teal-400': registerForm.controls['password'].value?.length >= 8, 'text-gray-600': registerForm.controls['password'].value?.length < 8 }">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                At least 8 characters
+                            </p>
+                            <p class="text-[11px] flex items-center gap-1.5"
+                                [ngClass]="{ 'text-teal-400': registerForm.controls['password'].value?.match('[A-Z]'), 'text-gray-600': !registerForm.controls['password'].value?.match('[A-Z]') }">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                One uppercase letter
+                            </p>
+                            <p class="text-[11px] flex items-center gap-1.5"
+                                [ngClass]="{ 'text-teal-400': registerForm.controls['password'].value?.match('[a-z]'), 'text-gray-600': !registerForm.controls['password'].value?.match('[a-z]') }">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                One lowercase letter
+                            </p>
+                            <p class="text-[11px] flex items-center gap-1.5"
+                                [ngClass]="{ 'text-teal-400': registerForm.controls['password'].value?.match('[0-9]'), 'text-gray-600': !registerForm.controls['password'].value?.match('[0-9]') }">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                One digit
+                            </p>
+                            <p class="text-[11px] flex items-center gap-1.5"
+                                [ngClass]="{ 'text-teal-400': registerForm.controls['password'].value?.match('[@$!%*?&]'), 'text-gray-600': !registerForm.controls['password'].value?.match('[@$!%*?&]') }">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                One special character (@$!%*?&amp;)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 3 — Contact -->
+                <div *ngIf="currentStep === 3" [@slideStep]="slideAnimation" class="space-y-5">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-white">Contact Info</h2>
+                        <p class="text-gray-500 text-sm mt-1">How can we reach you?</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Contact
+                                Number</label>
+                            <input type="text" formControlName="contactNumber" placeholder="9876543210"
+                                class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200"
+                                maxlength="10" />
+                            <div class="overflow-hidden" *ngIf="shouldShowError('contactNumber')">
+                                <p @fadeIn class="text-red-400 text-xs mt-1">
+                                    <span
+                                        *ngIf="registerForm.controls['contactNumber'].errors?.['required']">Required</span>
+                                    <span *ngIf="registerForm.controls['contactNumber'].errors?.['pattern']">10 digits,
+                                        starts with 6-9</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Pincode</label>
+                            <input type="text" formControlName="pincode" placeholder="400001"
+                                class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200"
+                                maxlength="6" />
+                            <div class="overflow-hidden" *ngIf="shouldShowError('pincode')">
+                                <p @fadeIn class="text-red-400 text-xs mt-1">
+                                    <span *ngIf="registerForm.controls['pincode'].errors?.['required']">Required</span>
+                                    <span *ngIf="registerForm.controls['pincode'].errors?.['pattern']">Valid 6-digit
+                                        pincode</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Contact Person</label>
+                        <input type="text" formControlName="contactPersonName" placeholder="Full name"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200" />
+                        <div class="overflow-hidden" *ngIf="shouldShowError('contactPersonName')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['contactPersonName'].errors?.['required']">Contact
+                                    person name is required</span>
+                                <span *ngIf="registerForm.controls['contactPersonName'].errors?.['minlength']">At least
+                                    2 characters</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Address</label>
+                        <textarea formControlName="address" placeholder="Company address" rows="3"
+                            class="w-full border border-gray-700/50 bg-white/[0.04] text-white px-4 py-2.5 rounded-xl placeholder-gray-600 focus:outline-none focus:border-teal-500/70 focus:bg-white/[0.06] transition-all duration-200 resize-none"></textarea>
+                        <div class="overflow-hidden" *ngIf="shouldShowError('address')">
+                            <p @fadeIn class="text-red-400 text-xs mt-1">
+                                <span *ngIf="registerForm.controls['address'].errors?.['required']">Address is
+                                    required</span>
+                                <span *ngIf="registerForm.controls['address'].errors?.['minlength']">At least 5
+                                    characters</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex items-center justify-between mt-8 gap-3">
+                <button *ngIf="currentStep > 1" type="button" (click)="prevStep()"
+                    class="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-all duration-200 text-sm font-medium">
+                    Back
+                </button>
+                <div *ngIf="currentStep === 1" class="flex-1"></div>
+
+                <button *ngIf="currentStep < totalSteps" type="button" (click)="nextStep()"
+                    class="ml-auto px-6 py-2.5 rounded-xl bg-teal-500 text-white font-semibold hover:bg-teal-400 transition-all duration-200 text-sm shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40">
+                    Continue
+                </button>
+
+                <button *ngIf="currentStep === totalSteps" type="submit"
+                    class="ml-auto px-6 py-2.5 rounded-xl bg-white text-black font-semibold hover:bg-gray-100 transition-all duration-200 text-sm shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                    [disabled]="registerForm.invalid">
+                    Create Account
+                </button>
+            </div>
+
+            <p class="text-gray-600 text-sm text-center mt-6">
+                Already have an account?
+                <a routerLink="/auth/login"
+                    class="text-teal-400 hover:text-teal-300 hover:underline transition-colors">Sign in</a>
+            </p>
+
+        </form>
+    </div>
+</div>
+
+<!-- Success Popup -->
+<div *ngIf="showSuccessPopup" @popupOverlay
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
+    <div @popupContent
+        class="bg-[#141414] border border-gray-800 rounded-2xl p-10 max-w-sm text-center space-y-5 shadow-2xl shadow-black/60">
+        <div
+            class="w-14 h-14 mx-auto rounded-full bg-teal-500/15 flex items-center justify-center ring-1 ring-teal-500/30">
+            <svg class="w-7 h-7 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-white">Registration Submitted</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">
+            Your registration request has been sent to manufacturer for confirmation.
+            You will be notified once you get approved.
+        </p>
+        <button (click)="closePopup()"
+            class="w-full bg-teal-500 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-400 transition-all duration-200 text-sm shadow-lg shadow-teal-500/20">
+            Got it
+        </button>
+    </div>
+</div>
