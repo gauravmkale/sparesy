@@ -10,6 +10,9 @@ import { MfgSuppliersComponent } from './suppliers/suppliers.component';
 import { MfgProductionComponent } from './production/production.component';
 import { MfgInventoryComponent } from './inventory/inventory.component';
 import { MfgTransactionsComponent } from './transactions/transactions.component';
+import { MfgOnboardingComponent } from './onboarding/onboarding.component';
+import { MfgClientsComponent } from './clients/clients.component';
+
 
 @Component({
   selector: 'app-manufacturer-dashboard',
@@ -18,7 +21,8 @@ import { MfgTransactionsComponent } from './transactions/transactions.component'
     CommonModule, RouterModule,
     MfgOverviewComponent, MfgProjectsComponent, MfgComponentsComponent,
     MfgSuppliersComponent, MfgProductionComponent,
-    MfgInventoryComponent, MfgTransactionsComponent
+    MfgInventoryComponent, MfgTransactionsComponent,
+    MfgOnboardingComponent, MfgClientsComponent
   ],
   template: `
     <div class="flex min-h-[calc(100vh-57px)]">
@@ -47,9 +51,11 @@ import { MfgTransactionsComponent } from './transactions/transactions.component'
         <app-mfg-projects *ngIf="activeTab === 'projects'" />
         <app-mfg-components *ngIf="activeTab === 'components'" />
         <app-mfg-suppliers *ngIf="activeTab === 'suppliers'" />
+        <app-mfg-clients *ngIf="activeTab === 'clients'" />
         <app-mfg-production *ngIf="activeTab === 'production'" />
         <app-mfg-inventory *ngIf="activeTab === 'inventory'" />
         <app-mfg-transactions *ngIf="activeTab === 'transactions'" />
+        <app-mfg-onboarding *ngIf="activeTab === 'onboarding'" />
       </main>
     </div>
   `
@@ -58,12 +64,14 @@ export class ManufacturerDashboardComponent {
   activeTab = 'overview';
 
   tabs = [
-    { key: 'overview', label: 'Overview', icon: '📊' },
-    { key: 'projects', label: 'Projects', icon: '📁' },
-    { key: 'components', label: 'Components', icon: '🔩' },
-    { key: 'suppliers', label: 'Suppliers', icon: '🏭' },
-    { key: 'production', label: 'Production', icon: '⚙️' },
-    { key: 'inventory', label: 'Inventory', icon: '📦' },
-    { key: 'transactions', label: 'Transactions', icon: '💰' }
+    { key: 'overview',     label: 'Overview',     icon: '📊' },
+    { key: 'projects',     label: 'Projects',     icon: '📁' },
+    { key: 'components',   label: 'Components',   icon: '🔩' },
+    { key: 'suppliers',    label: 'Suppliers',    icon: '🏭' },
+    { key: 'clients',      label: 'Clients',      icon: '🏢' },
+    { key: 'production',   label: 'Production',   icon: '⚙️' },
+    { key: 'inventory',    label: 'Inventory',    icon: '📦' },
+    { key: 'transactions', label: 'Transactions', icon: '💰' },
+    { key: 'onboarding',   label: 'Onboarding',   icon: '🔔' }
   ];
 }
