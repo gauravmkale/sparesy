@@ -45,4 +45,9 @@ public class NotificationService {
     public void notifySupplierQuoteSubmitted(Long manufacturerCompanyId, Long requestId) {
         push(manufacturerCompanyId, "SUPPLIER_QUOTED:" + requestId);
     }
-}
+
+    // Notify manufacturer when a new company registers and is PENDING approval
+    public void notifyNewRegistration(Long manufacturerCompanyId, String companyName) {
+        push(manufacturerCompanyId, "NEW_ONBOARDING:" + companyName);
+    }
+    }
