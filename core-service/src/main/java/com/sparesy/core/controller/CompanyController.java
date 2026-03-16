@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Handles all company-related reads in core-service
-// Company creation is handled by auth-service — this is read-only
+// Handles all company-related reads and manufacturer approvals in core-service
+// Company registration is handled by auth-service
 @RestController
 @RequestMapping("/api/companies")
 public class CompanyController {
@@ -20,17 +20,36 @@ public class CompanyController {
     }
 
     // GET /api/companies/clients
-    // Manufacturer views all registered client companies
     @GetMapping("/clients")
     public ResponseEntity<List<Company>> getAllClients() {
         return ResponseEntity.ok(companyService.getAllClients());
     }
 
     // GET /api/companies/suppliers
-    // Manufacturer views all registered supplier companies
     @GetMapping("/suppliers")
     public ResponseEntity<List<Company>> getAllSuppliers() {
         return ResponseEntity.ok(companyService.getAllSuppliers());
+    }
+
+    // GET /api/companies/pending
+    // Manufacturer views all companies waiting for approval
+    @GetMapping("/pending")
+    public ResponseEntity<List<Company>> getPendingCompanies() {
+        return ResponseEntity.ok(companyService.getPendingCompanies());
+    }
+
+    // PUT /api/companies/{id}/approve
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<Void> approveCompany(@PathVariable Long id) {
+        companyService.approveCompany(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // PUT /api/companies/{id}/reject
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<Void> rejectCompany(@PathVariable Long id) {
+        companyService.rejectCompany(id);
+        return ResponseEntity.ok().build();
     }
 
     // GET /api/companies/{id}

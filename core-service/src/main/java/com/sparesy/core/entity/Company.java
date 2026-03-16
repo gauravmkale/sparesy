@@ -2,6 +2,7 @@ package com.sparesy.core.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sparesy.core.enums.CompanyType;
+import com.sparesy.core.enums.OnboardingStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -47,6 +48,10 @@ public class Company {
 
     @Column(length = 100)
     private String contactPersonName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private OnboardingStatus onboardingStatus = OnboardingStatus.PENDING;
 
     @Column(nullable = false)
     private Boolean isActive = true;
