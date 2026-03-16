@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ComponentRepository extends JpaRepository<Component, Long> {
     Optional<Component> findByPartNumber(String partNumber);
     List<Component> findByCategory(String category);
+    boolean existsByPartNumber(String partNumber);
 }
