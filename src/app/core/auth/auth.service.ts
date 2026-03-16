@@ -4,7 +4,7 @@ import { BehaviorSubject, map, Observable } from "rxjs";
 import { TokenService } from "./token.service";
 import { jwtDecode } from "./jwt.helper";
 
-export interface AuthUser { id?: string; email?: string; role?: string; exp?: number; }
+export interface AuthUser { id?: number; email?: string; role?: string; exp?: number; }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -17,11 +17,15 @@ export class AuthService {
         this.user$ = this.userSubject.asObservable();
     }
 
-    private getUserFromToken(): AuthUser | null {
+    public getUserFromToken(): AuthUser | null {
         const t = this.tokenService.getToken();
         const payload = jwtDecode(t);
         if (!payload) return null;
-        return { id: payload.id, email: payload.email, role: payload.role, exp: payload.exp };
+        return {
+            id: payload.companyId,
+            role: payload.companyType?.toLowerCase(),
+            exp: payload.exp
+        };
     }
 
     isAuthenticated(): boolean {
@@ -43,7 +47,7 @@ export class AuthService {
             }))
     }
 
-    register(payload: { name: string, email: string, password: string, role: string }) {
+    register(payload: any) {
         return this.http.post(`${this.Api}/register`, payload);
     }
 

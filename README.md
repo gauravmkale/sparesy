@@ -1,59 +1,98 @@
-# Sparesy
+# Sparesy Frontend — Documentation
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.0.
+**Sparesy | Private Client & Supplier Portal**  
+**Port:** 4200  
+**Framework:** Angular 21.2.0
 
-## Development server
+---
 
-To start a local development server, run:
+## Architecture Overview
 
-```bash
-ng serve
+The Sparesy frontend is built with a **Layered Feature-Based Architecture**. This ensures that the codebase remains scalable, maintainable, and easy to navigate as new modules are added.
+
+### 1. Core Layer (`src/app/core`)
+The "brain" of the application. It contains singleton services, guards, and interceptors that exist for the entire lifetime of the app.
+- **`auth/`**: Manages user sessions, JWT tokens, and login/logout logic.
+- **`guards/`**: Protects routes based on authentication status (`AuthGuard`) and user roles (`RoleGuard`).
+- **`interceptors/`**: Automatically attaches the JWT `Authorization` header to every outgoing API request.
+
+### 2. Shared Layer (`src/app/shared`)
+Contains reusable UI components, pipes, and directives that are used across multiple features.
+- **`components/`**: Common UI elements like the `NavbarComponent`.
+
+### 3. Features Layer (`src/app/features`)
+Contains the actual screens (pages) of the application, organized by domain.
+- **`landing/`**: The public entry point.
+- **`auth/`**: Login and registration screens.
+- **`manufacturer/`**: Dashboard for factory admins.
+- **`supplier/`**: Portal for parts suppliers.
+- **`client/`**: Dashboard for PCB project owners.
+
+---
+
+## Backend Communication
+
+The frontend communicates with two backend services:
+1. **Auth Service (8081)**: For login and registration.
+2. **Core Service (8082)**: For business logic (projects, quotes, inventory).
+
+### Proxy Configuration (`proxy.conf.json`)
+To avoid CORS issues and simplify development, we use an Angular proxy. This allows the frontend to call `/api/auth` and `/api` on its own port (4200), and the server "tunnels" those requests to the correct backend.
+
+```json
+{
+  "/api/auth": { "target": "http://127.0.0.1:8081" },
+  "/api": { "target": "http://127.0.0.1:8082" }
+}
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+### The Auth Interceptor
+Every request sent via `HttpClient` is intercepted by `AuthInterceptor`. It checks if a JWT token exists in local storage and adds it to the header:
+`Authorization: Bearer <token>`
 
-## Code scaffolding
+---
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Routing & Security
 
-```bash
-ng generate component component-name
+### Route Definitions (`src/app/app.routes.ts`)
+Routes are protected using role-based data.
+```typescript
+{ 
+  path: 'manufacturing', 
+  component: ManufacturerDashboardComponent, 
+  canActivate: [AuthGuard, RoleGuard], 
+  data: { roles: ['manufacturer'] } 
+}
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+### Redirection Logic
+Upon successful login, the `LoginComponent` reads the `companyType` from the JWT and redirects the user:
+- `MANUFACTURER` → `/manufacturing`
+- `SUPPLIER` → `/supplier`
+- `CLIENT` → `/client`
 
-```bash
-ng generate --help
-```
+---
 
-## Building
+## How to Run
 
-To build the project run:
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-```bash
-ng build
-```
+2. **Start the Development Server:**
+   ```bash
+   npm start
+   ```
+   *Note: This command automatically uses `proxy.conf.json`.*
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+3. **Open in Browser:**
+   Navigate to `http://localhost:4200`
 
-## Running unit tests
+---
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Key Files
+- `src/main.ts`: Application entry point.
+- `src/app/app.component.ts`: The main layout shell.
+- `src/app/app.config.ts`: Global providers (Routing, HTTP, Interceptors).
+- `src/app/app.routes.ts`: Central routing configuration.
