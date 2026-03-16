@@ -1,6 +1,7 @@
 package com.sparesy.auth.model;
 
 import com.sparesy.auth.enums.CompanyType;
+import com.sparesy.auth.enums.OnboardingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -53,6 +54,11 @@ public class Company {
 
     @Column(nullable = false, length = 100)
     private String contactPersonName;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(nullable = false, length = 20)
+    private OnboardingStatus onboardingStatus = OnboardingStatus.PENDING;
 
     // Soft enable/disable — manufacturer can deactivate a company
     // MySQL stores this as TINYINT(1) — true=1, false=0

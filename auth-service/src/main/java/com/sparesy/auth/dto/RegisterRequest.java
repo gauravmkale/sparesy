@@ -41,4 +41,7 @@ public class RegisterRequest {
 
     @NotBlank(message = "Contact person name is required")
     private String contactPersonName;
+
+    //Invite token for manufacturer's link.
+    private String inviteToken;
 }
