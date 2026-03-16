@@ -19,4 +19,15 @@ export class CompanyService {
     getById(id: number): Observable<any> {
         return this.http.get(`${this.api}/${id}`);
     }
+    getPending(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/pending`);
+    }
+
+    approve(id: number): Observable<any> {
+        return this.http.put(`${this.api}/${id}/approve`, {});
+    }
+
+    reject(id: number): Observable<any> {
+        return this.http.put(`${this.api}/${id}/reject`, {});
+    }
 }
