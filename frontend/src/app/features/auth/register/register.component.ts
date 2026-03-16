@@ -1,8 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { trigger, transition, style, animate, state } from '@angular/animations';
 
 @Component({
@@ -47,12 +47,14 @@ import { trigger, transition, style, animate, state } from '@angular/animations'
         ])
     ]
 })
-export class RegisterComponent {
+export class RegisterComponent implements OnInit {
     registerForm: FormGroup;
     currentStep = 1;
     totalSteps = 3;
     slideDirection: 'left' | 'right' = 'right';
     showSuccessPopup = false;
+    inviteToken: string | null = null;
+    invalidToken = false;
 
     steps = [
         { number: 1, label: 'Company' },
@@ -60,7 +62,12 @@ export class RegisterComponent {
         { number: 3, label: 'Contact' }
     ];
 
-    constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {
+    constructor(
+        private fb: FormBuilder,
+        private auth: AuthService,
+        private router: Router,
+        private route: ActivatedRoute
+    ) {
         this.registerForm = this.fb.group({
             companyName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
             companyType: ['', Validators.required],
@@ -85,6 +92,25 @@ export class RegisterComponent {
                 Validators.pattern(/^[1-9][0-9]{5}$/)
             ]]
         });
+    }
+
+    ngOnInit() {
+        this.inviteToken = this.route.snapshot.queryParams['token'] || null;
+
+        // If a token is present, validate it on load
+        if (this.inviteToken) {
+            this.auth.validateInvite(this.inviteToken).subscribe({
+                next: (inv: any) => {
+                    // Pre-fill company type from invitation
+                    this.registerForm.patchValue({ companyType: inv.type });
+                    // Lock company type — it's set by the manufacturer's invite
+                    this.registerForm.get('companyType')?.disable();
+                },
+                error: () => {
+                    this.invalidToken = true;
+                }
+            });
+        }
     }
 
     get stepFields(): string[] {
@@ -133,8 +159,8 @@ export class RegisterComponent {
         this.markCurrentStepDirty();
         if (!this.registerForm.valid) return;
 
-        const v = this.registerForm.value;
-        const payload = {
+        const v = this.registerForm.getRawValue(); // getRawValue includes disabled fields
+        const payload: any = {
             name: v.companyName,
             email: v.email,
             password: v.password,
@@ -145,6 +171,11 @@ export class RegisterComponent {
             pincode: v.pincode,
             contactPersonName: v.contactPersonName
         };
+
+        // Attach invite token if present
+        if (this.inviteToken) {
+            payload.inviteToken = this.inviteToken;
+        }
 
         this.auth.register(payload).subscribe({
             next: () => { this.showSuccessPopup = true; },

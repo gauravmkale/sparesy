@@ -59,4 +59,8 @@ export class AuthService {
     getToken(): string | null {
         return this.tokenService.getToken();
     }
+    
+    validateInvite(token: string): Observable<any> {
+    return this.http.get(`${this.Api}/invite/validate`, { params: { token } });
+}
 }
