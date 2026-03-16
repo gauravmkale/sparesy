@@ -5,12 +5,16 @@ import com.sparesy.auth.dto.LoginRequest;
 import com.sparesy.auth.dto.LoginResponse;
 import com.sparesy.auth.dto.RegisterRequest;
 import com.sparesy.auth.dto.UpdateCompanyRequest;
+import com.sparesy.auth.enums.CompanyType;
 import com.sparesy.auth.model.Company;
+import com.sparesy.auth.model.Invitation;
 import com.sparesy.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 // @RestController = @Controller + @ResponseBody
 // means every method automatically converts return value to JSON
@@ -40,6 +44,21 @@ public class AuthController {
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
         return ResponseEntity.status(201).build();
+    }
+
+    // POST /api/auth/invite
+    @PostMapping("/invite")
+    public ResponseEntity<String> invite(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        CompanyType type = CompanyType.valueOf(request.get("type"));
+        String token = authService.createInvitation(email, type);
+        return ResponseEntity.ok(token);
+    }
+
+    // GET /api/auth/invite/validate?token=xyz
+    @GetMapping("/invite/validate")
+    public ResponseEntity<Invitation> validateInvitation(@RequestParam String token) {
+        return ResponseEntity.ok(authService.validateInvitation(token));
     }
     // GET /api/auth/companies/{id}
     @GetMapping("/companies/{id}")
