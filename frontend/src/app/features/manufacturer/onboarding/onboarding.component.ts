@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompanyService } from '../../../core/services/company.service';
 
@@ -70,12 +70,18 @@ import { CompanyService } from '../../../core/services/company.service';
 export class MfgOnboardingComponent implements OnInit {
     pending: any[] = [];
 
-    constructor(private companyService: CompanyService) { }
+    constructor(
+      private companyService: CompanyService,
+      private cdr : ChangeDetectorRef  
+    ) { }
 
     ngOnInit() { this.load(); }
 
     load() {
-        this.companyService.getPending().subscribe({ next: d => this.pending = d || [], error: () => { } });
+        this.companyService.getPending().subscribe({ next: d => {
+          this.pending = d || [];
+          this.cdr.detectChanges();}
+          , error: () => { } });
     }
 
     approve(id: number) {
