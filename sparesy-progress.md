@@ -168,6 +168,8 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export PATH=$JAVA_HOME/bin:$PATH
 cd sparesy/core-service
 mvn spring-boot:run
+
+ sudo /usr/local/mysql/support-files/mysql.server start
 ```
 
 ---
