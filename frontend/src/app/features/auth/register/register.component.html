@@ -4,6 +4,13 @@
         <form [formGroup]="registerForm" (ngSubmit)="onSubmit()"
             class="relative border border-gray-800 bg-[#111111]/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl shadow-black/40">
 
+            <div *ngIf="invalidToken" class="text-center py-6 space-y-3">
+                <p class="text-red-400 text-sm font-medium">⚠ This invite link is invalid or has expired.</p>
+                <a routerLink="/auth/login" class="text-teal-400 text-sm hover:underline">Back to login</a>
+            </div>
+            
+            <!--Only give form if invite link is valid-->
+            <ng-container *ngIf="!invalidToken">
             <!-- Step indicator -->
             <div class="flex items-center justify-between mb-8">
                 <ng-container *ngFor="let step of steps; let i = index; let last = last">
@@ -271,7 +278,7 @@
                 <a routerLink="/auth/login"
                     class="text-teal-400 hover:text-teal-300 hover:underline transition-colors">Sign in</a>
             </p>
-
+            </ng-container>
         </form>
     </div>
 </div>

@@ -123,7 +123,10 @@ export class RegisterComponent implements OnInit {
     }
 
     isCurrentStepValid(): boolean {
-        return this.stepFields.every(f => this.registerForm.get(f)?.valid);
+        return this.stepFields.every(f =>{
+            const control = this.registerForm.get(f);                    
+            return control?.disabled || control?.valid;
+        });
     }
 
     shouldShowError(field: string): boolean {
