@@ -12,8 +12,16 @@ export class CompanyService {
         return this.http.get<any[]>(`${this.api}/clients`);
     }
 
+    getApprovedClients(): Observable<any[]> {
+        return this.http.get<any[]>(`${this.api}/Approvedclients`);
+    }
+
     getSuppliers(): Observable<any[]> {
         return this.http.get<any[]>(`${this.api}/suppliers`);
+    }
+
+    getApprovedSuppliers(): Observable<any[]> {
+        return this.http.get<any[]>(`${this.api}/Approvedsuppliers`);
     }
 
     getById(id: number): Observable<any> {

@@ -5,6 +5,8 @@ import { CompanyService } from '../../../core/services/company.service';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { HttpClient } from '@angular/common/http';
+import { ChangeDetectorRef } from '@angular/core';
+
 
 @Component({
     selector: 'app-mfg-suppliers',
@@ -55,9 +57,9 @@ import { HttpClient } from '@angular/common/http';
               class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">
               {{ generatedLink ? 'Done' : 'Cancel' }}
             </button>
-            <button *ngIf="!generatedLink" (click)="generateInvite()"
-              class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">
-              Generate Link
+            <button *ngIf="!generatedLink" (click)="generateInvite()" [disabled]="isGenerating"
+              class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ isGenerating ? 'Generating...' : 'Generate Link' }}
             </button>
           </div>
         </div>
@@ -122,15 +124,23 @@ export class MfgSuppliersComponent implements OnInit {
     inviteEmail = '';
     generatedLink: string | null = null;
     copied = false;
+    isGenerating =false;
 
     constructor(
         private companyService: CompanyService,
         private supplierCompService: SupplierComponentService,
-        private http: HttpClient
+        private http: HttpClient,
+        private cdr: ChangeDetectorRef
+
     ) { }
 
     ngOnInit() {
-        this.companyService.getSuppliers().subscribe({ next: d => this.suppliers = d || [], error: () => { } });
+        this.companyService.getApprovedSuppliers().subscribe({
+           next: d => {
+            this.suppliers = d || [], 
+            this.cdr.detectChanges();
+           },
+          error: () => { } });
     }
 
     selectSupplier(s: any) {
@@ -142,13 +152,18 @@ export class MfgSuppliersComponent implements OnInit {
     }
 
     generateInvite() {
+        if (this.isGenerating) return;
+        this.isGenerating = true;
         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
-        this.http.post<any>('/api/auth/invite', { email, type: 'SUPPLIER' }).subscribe({
-            next: (token: any) => {
-                const rawToken = typeof token === 'string' ? token : token.token;
-                this.generatedLink = `${window.location.origin}/auth/register?token=${rawToken}`;
+        this.http.post('/api/auth/invite', { email, type: 'SUPPLIER' }, { responseType: 'text' }).subscribe({
+            next: (token: string) => {
+                this.isGenerating = false;
+                this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
             },
-            error: (e: any) => alert(e.error?.message || 'Error generating invite')
+            error: (e: any) => {
+                this.isGenerating = false;
+                alert(e.error?.message || 'Error generating invite');
+            }
         });
     }
 
