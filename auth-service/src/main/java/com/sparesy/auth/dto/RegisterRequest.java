@@ -1,5 +1,6 @@
 package com.sparesy.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sparesy.auth.enums.CompanyType;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -24,6 +25,7 @@ public class RegisterRequest {
     @NotNull(message = "Company type is required")
     private CompanyType type;
 
+    @JsonAlias("pincode")
     @NotBlank(message = "Pin code is required")
     @Pattern(regexp = "^[0-9]{6}$", message = "Pin code must be 6 digits")
     private String pinCode;

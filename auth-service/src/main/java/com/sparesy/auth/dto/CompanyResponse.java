@@ -28,7 +28,7 @@ public class CompanyResponse {
         this.name = company.getName();
         this.email = company.getEmail();
         this.type = company.getType();
-        this.pinCode = company.getPincode();
+        this.pinCode = company.getPinCode();
         this.contactNumber = company.getContactNumber();
         this.gstNumber = company.getGstNumber();
         this.address = company.getAddress();

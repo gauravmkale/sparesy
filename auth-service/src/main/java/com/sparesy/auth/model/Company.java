@@ -41,7 +41,7 @@ public class Company {
     private CompanyType type;
 
     @Column(nullable =false, length =6)
-    private String pincode;
+    private String pinCode;
 
     @Column(nullable = false,length =10)
     private String contactNumber;

@@ -112,7 +112,7 @@ public class AuthService {
             .email(request.getEmail())
             .password(hashedPassword)
             .type(request.getType())
-            .pincode(request.getPinCode())
+            .pinCode(request.getPinCode())
             .contactNumber(request.getContactNumber())
             .gstNumber(request.getGstNumber())
             .address(request.getAddress())
@@ -145,7 +145,7 @@ public class AuthService {
         company.setAddress(request.getAddress());
         company.setContactNumber(request.getContactNumber());
         company.setContactPersonName(request.getContactPersonName());
-        company.setPincode(request.getPinCode());
+        company.setPinCode(request.getPinCode());
 
         companyRepository.save(company);
     }
