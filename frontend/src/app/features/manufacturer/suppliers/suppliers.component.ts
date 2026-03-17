@@ -137,7 +137,7 @@ export class MfgSuppliersComponent implements OnInit {
     ngOnInit() {
         this.companyService.getApprovedSuppliers().subscribe({
            next: d => {
-            this.suppliers = d || [], 
+            this.suppliers = d || [];
             this.cdr.detectChanges();
            },
           error: () => { } });
@@ -159,6 +159,7 @@ export class MfgSuppliersComponent implements OnInit {
             next: (token: string) => {
                 this.isGenerating = false;
                 this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
+                this.cdr.detectChanges();
             },
             error: (e: any) => {
                 this.isGenerating = false;

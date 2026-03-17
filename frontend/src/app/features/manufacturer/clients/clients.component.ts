@@ -106,7 +106,7 @@ export class MfgClientsComponent implements OnInit {
     ngOnInit() {
         this.companyService.getApprovedClients().subscribe({
            next: d => {
-            this.clients = d || [], 
+            this.clients = d || [];
             this.cdr.detectChanges();
            },
           error: () => { } });
@@ -119,10 +119,13 @@ export class MfgClientsComponent implements OnInit {
         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
         this.http.post('/api/auth/invite', { email, type: 'CLIENT' }, { responseType: 'text' }).subscribe({
             next: (token: string) => {
+                console.log('Success', token);
                 this.isGenerating = false;
                 this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
+                this.cdr.detectChanges();
             },
             error: (e: any) => {
+                console.log('Error',e);
                 this.isGenerating = false;
                 alert(e.error?.message || 'Error generating invite');
             }
