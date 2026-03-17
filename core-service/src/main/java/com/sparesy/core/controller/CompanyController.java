@@ -25,11 +25,23 @@ public class CompanyController {
         return ResponseEntity.ok(companyService.getAllClients());
     }
 
+    @GetMapping("/Approvedclients")
+    public ResponseEntity<List<Company>> getAllApprovedClients() {
+        return ResponseEntity.ok(companyService.getAllApprovedClients());
+    }
+    
+
     // GET /api/companies/suppliers
     @GetMapping("/suppliers")
     public ResponseEntity<List<Company>> getAllSuppliers() {
         return ResponseEntity.ok(companyService.getAllSuppliers());
     }
+
+    @GetMapping("/Approvedsuppliers")
+    public ResponseEntity<List<Company>> getAllApprovedSuppliers() {
+        return ResponseEntity.ok(companyService.getAllApprovedSuppliers());
+    }
+
 
     // GET /api/companies/pending
     // Manufacturer views all companies waiting for approval

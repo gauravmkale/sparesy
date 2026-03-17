@@ -11,4 +11,5 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     List<Company> findByType(CompanyType type);
     List<Company> findByOnboardingStatus(OnboardingStatus status);
     boolean existsByEmail(String email);
+    List<Company> findByTypeAndOnboardingStatus(CompanyType type, OnboardingStatus status);
 }

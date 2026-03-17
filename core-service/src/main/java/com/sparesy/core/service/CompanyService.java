@@ -29,9 +29,18 @@ public class CompanyService {
         return companyRepository.findByType(CompanyType.CLIENT);
     }
 
+    public List<Company> getAllApprovedClients() {
+        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.CLIENT, OnboardingStatus.APPROVED);
+    }
+
     // Returns all companies of type SUPPLIER — used by manufacturer portal
     public List<Company> getAllSuppliers() {
         return companyRepository.findByType(CompanyType.SUPPLIER);
+    }
+
+    //Return only approved supp;liers
+    public List<Company> getAllApprovedSuppliers() {
+        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.SUPPLIER, OnboardingStatus.APPROVED);
     }
 
     public List<Company> getPendingCompanies() {
