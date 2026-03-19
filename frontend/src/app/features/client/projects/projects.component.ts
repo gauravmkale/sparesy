@@ -53,7 +53,10 @@ import { ProductionService } from '../../../core/services/production.service';
           </div>
         </div>
         <div class="flex justify-end mt-4">
-          <button (click)="submitProject()" class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition">Submit Project</button>
+          <button (click)="submitProject()" [disabled]="isLoading()" 
+            class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition">
+            {{ isLoading() ? 'Submitting...' : 'Submit Project' }}
+          </button>
         </div>
       </div>
 
@@ -61,14 +64,14 @@ import { ProductionService } from '../../../core/services/production.service';
       <div *ngIf="selectedProject()" class="mb-6">
         <button (click)="selectedProject.set(null)" class="text-gray-500 hover:text-white text-sm mb-4 flex items-center gap-1 transition">← Back to list</button>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
-          <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject().name }}</h3>
+          <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject()?.name || 'Untitled Project' }}</h3>
           <div class="grid grid-cols-3 gap-3 text-sm mb-4">
-            <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject().quantity }}</span></div>
-            <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject().layerCount }}</span></div>
-            <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject().boardThickness }}mm</span></div>
-            <div><span class="text-gray-500">Surface:</span> <span class="text-gray-300 ml-2">{{ selectedProject().surfaceFinish }}</span></div>
+            <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.quantity }}</span></div>
+            <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.layerCount }}</span></div>
+            <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.boardThickness }}mm</span></div>
+            <div><span class="text-gray-500">Surface:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.surfaceFinish }}</span></div>
             <div><span class="text-gray-500">Status:</span>
-              <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject().status)">{{ selectedProject().status }}</span>
+              <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject()?.status)">{{ selectedProject()?.status }}</span>
             </div>
           </div>
           <!-- Production Tracking -->
@@ -124,20 +127,25 @@ export class ClientProjectsComponent implements OnInit {
     selectedProject = signal<any>(null);
     productionOrder = signal<any>(null);
     showForm = signal<boolean>(false);
+    isLoading = signal<boolean>(false);
     
     newProject: any = { name: '', quantity: 100, layerCount: 2, boardThickness: 1.6, surfaceFinish: 'HASL' };
     stages = ['COMPONENT_PREP', 'PCB_FABRICATION', 'SMT_ASSEMBLY', 'SOLDERING', 'QC_INSPECTION', 'PACKAGING', 'READY'];
 
     constructor(
         private projectService: ProjectService,
-        private prodService: ProductionService
+        private prodService: ProductionService,
+        private cdr: ChangeDetectorRef
     ) { }
 
     ngOnInit() { this.load(); }
 
     load() {
         this.projectService.getMyProjects().subscribe({
-            next: d => this.projects.set(d || []),
+            next: d => {
+              this.projects.set(d || []);
+              this.cdr.detectChanges();
+            },
             error: () => { }
         });
     }
@@ -145,19 +153,28 @@ export class ClientProjectsComponent implements OnInit {
     selectProject(p: any) {
         this.selectedProject.set(p);
         this.prodService.getByProject(p.id).subscribe({
-            next: d => this.productionOrder.set(d),
+            next: d => {
+              this.productionOrder.set(d);
+              this.cdr.detectChanges();
+            },
             error: () => this.productionOrder.set(null)
         });
     }
 
     submitProject() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.projectService.submitProject(this.newProject).subscribe({
             next: () => { 
+                this.isLoading.set(false);
                 this.showForm.set(false); 
                 this.newProject = { name: '', quantity: 100, layerCount: 2, boardThickness: 1.6, surfaceFinish: 'HASL' }; 
                 this.load(); 
             },
-            error: (e: any) => alert(e.error?.message || 'Error submitting project')
+            error: (e: any) => {
+              this.isLoading.set(false);
+              alert(e.error?.message || 'Error submitting project');
+            }
         });
     }
 

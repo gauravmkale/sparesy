@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { ComponentService } from '../../../core/services/component.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-sup-catalog',
@@ -65,7 +66,7 @@ import { ComponentService } from '../../../core/services/component.service';
             </thead>
             <tbody>
               <tr *ngFor="let sc of catalog()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
-                <td class="px-5 py-3 text-white font-medium">{{ sc.component?.name }}</td>
+                <td class="px-5 py-3 text-white font-medium">{{ sc.component?.name || 'Unknown Component' }}</td>
                 <td class="px-5 py-3">
                   <div *ngIf="editingId() !== sc.id" class="text-gray-300">₹{{ sc.unitPrice }}</div>
                   <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editPrice"
@@ -102,15 +103,15 @@ export class SupCatalogComponent implements OnInit {
     masterComponents = signal<any[]>([]);
     showAddForm = signal<boolean>(false);
     editingId = signal<number | null>(null);
+    isLoading = signal<boolean>(false);
     
     editPrice = 0;
     editStock = 0;
     newItem: any = { componentId: null, unitPrice: 0, stockQuantity: 0, leadTimeDays: 7 };
 
-    constructor(
-        private supCompService: SupplierComponentService, 
-        private compService: ComponentService
-    ) { }
+    private supCompService = inject(SupplierComponentService);
+    private compService = inject(ComponentService);
+    private notif = inject(NotificationService);
 
     ngOnInit() {
         this.load();
@@ -128,13 +129,20 @@ export class SupCatalogComponent implements OnInit {
     }
 
     addToCatalog() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.supCompService.addToCatalog(this.newItem).subscribe({
             next: () => { 
+                this.isLoading.set(false);
                 this.showAddForm.set(false); 
+                this.notif.success('Component added to your catalog');
                 this.newItem = { componentId: null, unitPrice: 0, stockQuantity: 0, leadTimeDays: 7 }; 
                 this.load(); 
             },
-            error: (e: any) => alert(e.error?.message || 'Error')
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error adding to catalog');
+            }
         });
     }
 
@@ -145,14 +153,28 @@ export class SupCatalogComponent implements OnInit {
     }
 
     saveEdit(id: number) {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.supCompService.updatePrice(id, this.editPrice).subscribe({
             next: () => {
                 this.supCompService.updateStock(id, this.editStock).subscribe({
-                    next: () => { this.editingId.set(null); this.load(); },
-                    error: () => { this.editingId.set(null); this.load(); }
+                    next: () => { 
+                        this.isLoading.set(false);
+                        this.editingId.set(null); 
+                        this.notif.success('Catalog item updated');
+                        this.load(); 
+                    },
+                    error: () => { 
+                        this.isLoading.set(false);
+                        this.editingId.set(null); 
+                        this.load(); 
+                    }
                 });
             },
-            error: (e: any) => alert(e.error?.message || 'Error')
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error updating item');
+            }
         });
     }
 }

@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyService } from '../../../core/services/company.service';
 import { HttpClient } from '@angular/common/http';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-clients',
@@ -64,23 +65,24 @@ import { HttpClient } from '@angular/common/http';
       <!-- Clients Grid -->
       <div class="grid grid-cols-3 gap-4">
         <div *ngFor="let c of clients()"
-          class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
+          class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 hover:border-indigo-500/30 transition-colors">
           <div class="flex items-start justify-between">
             <div>
-              <h3 class="text-white font-semibold">{{ c.name }}</h3>
-              <p class="text-gray-500 text-sm mt-1">{{ c.email }}</p>
-              <p class="text-gray-600 text-xs mt-1">{{ c.contactPersonName }}</p>
+              <h3 class="text-white font-semibold">{{ c?.name || 'Untitled Client' }}</h3>
+              <p class="text-gray-500 text-sm mt-1">{{ c?.email }}</p>
+              <p class="text-gray-600 text-xs mt-1">{{ c?.contactPersonName }}</p>
             </div>
-            <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-400">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               Active
             </span>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-800/40 text-xs text-gray-600">
-            {{ c.address }}
+          <div class="mt-3 pt-3 border-t border-gray-800/40 text-xs text-gray-500 line-clamp-2">
+            {{ c?.address }}
           </div>
         </div>
-        <div *ngIf="clients().length === 0" class="col-span-3 text-center py-8 text-gray-600">
-          No clients registered yet. Generate an invite link to add one.
+        <div *ngIf="clients().length === 0" class="col-span-3 text-center py-12 bg-[#111111] border border-gray-800/40 rounded-2xl">
+          <p class="text-gray-600">No clients registered yet.</p>
+          <button (click)="showInviteModal.set(true)" class="text-indigo-400 text-sm mt-2 hover:underline">Generate an invite link</button>
         </div>
       </div>
     </div>
@@ -95,12 +97,13 @@ export class MfgClientsComponent implements OnInit {
     
     inviteEmail = '';
 
-    constructor(
-        private companyService: CompanyService,
-        private http: HttpClient
-    ) { }
+    private companyService = inject(CompanyService);
+    private http = inject(HttpClient);
+    private notif = inject(NotificationService);
 
-    ngOnInit() {
+    ngOnInit() { this.load(); }
+
+    load() {
         this.companyService.getApprovedClients().subscribe({
             next: d => this.clients.set(d || []),
             error: () => { }
@@ -115,10 +118,11 @@ export class MfgClientsComponent implements OnInit {
             next: (token: string) => {
                 this.isGenerating.set(false);
                 this.generatedLink.set(`${window.location.origin}/auth/register?token=${token}`);
+                this.notif.success('Invite link generated successfully');
             },
             error: (e: any) => {
                 this.isGenerating.set(false);
-                alert(e.error?.message || 'Error generating invite');
+                this.notif.error(e.error?.message || 'Error generating invite');
             }
         });
     }
@@ -128,6 +132,7 @@ export class MfgClientsComponent implements OnInit {
         if (!link) return;
         navigator.clipboard.writeText(link).then(() => {
             this.copied.set(true);
+            this.notif.info('Link copied to clipboard');
             setTimeout(() => this.copied.set(false), 2000);
         });
     }

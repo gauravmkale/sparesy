@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
@@ -6,6 +6,7 @@ import { RequestService } from '../../../core/services/request.service';
 import { QuoteService } from '../../../core/services/quote.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { ComponentService } from '../../../core/services/component.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-projects',
@@ -71,15 +72,15 @@ import { ComponentService } from '../../../core/services/component.service';
 
         <div class="grid grid-cols-3 gap-4 mb-6">
           <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 col-span-2">
-            <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject().name }}</h3>
+            <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject()?.name || 'Untitled Project' }}</h3>
             <div class="grid grid-cols-2 gap-3 text-sm">
-              <div><span class="text-gray-500">Client:</span> <span class="text-gray-300 ml-2">{{ selectedProject().client?.name }}</span></div>
-              <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject().quantity }}</span></div>
-              <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject().layerCount }}</span></div>
-              <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject().boardThickness }}mm</span></div>
-              <div><span class="text-gray-500">Surface Finish:</span> <span class="text-gray-300 ml-2">{{ selectedProject().surfaceFinish }}</span></div>
+              <div><span class="text-gray-500">Client:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.client?.name || '—' }}</span></div>
+              <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.quantity }}</span></div>
+              <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.layerCount }}</span></div>
+              <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.boardThickness }}mm</span></div>
+              <div><span class="text-gray-500">Surface Finish:</span> <span class="text-gray-300 ml-2">{{ selectedProject()?.surfaceFinish }}</span></div>
               <div><span class="text-gray-500">Status:</span>
-                <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject().status)">{{ selectedProject().status }}</span>
+                <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject()?.status)">{{ selectedProject()?.status }}</span>
               </div>
             </div>
           </div>
@@ -206,6 +207,7 @@ export class MfgProjectsComponent implements OnInit {
     requests = signal<any[]>([]);
     suppliers = signal<any[]>([]);
     components = signal<any[]>([]);
+    isLoading = signal<boolean>(false);
     
     showSendRequest = signal<boolean>(false);
     showCreateQuote = signal<boolean>(false);
@@ -218,24 +220,26 @@ export class MfgProjectsComponent implements OnInit {
         private requestService: RequestService,
         private quoteService: QuoteService,
         private companyService: CompanyService,
-        private componentService: ComponentService
+        private componentService: ComponentService,
+        private cdr: ChangeDetectorRef,
+        private notif: NotificationService
     ) { }
 
     ngOnInit() {
         this.loadProjects();
         this.companyService.getSuppliers().subscribe({
-            next: d => this.suppliers.set(d || []),
+            next: d => { this.suppliers.set(d || []); this.cdr.detectChanges(); },
             error: () => { }
         });
         this.componentService.getAll().subscribe({
-            next: d => this.components.set(d || []),
+            next: d => { this.components.set(d || []); this.cdr.detectChanges(); },
             error: () => { }
         });
     }
 
     loadProjects() {
         this.projectService.getAllProjects().subscribe({
-            next: d => this.projects.set(d || []),
+            next: d => { this.projects.set(d || []); this.cdr.detectChanges(); },
             error: () => { }
         });
     }
@@ -243,49 +247,72 @@ export class MfgProjectsComponent implements OnInit {
     selectProject(p: any) {
         this.selectedProject.set(p);
         this.requestService.getByProject(p.id).subscribe({
-            next: d => this.requests.set(d || []),
+            next: d => { this.requests.set(d || []); this.cdr.detectChanges(); },
             error: () => { }
         });
     }
 
     updateStatus(id: number, event: any) {
         this.projectService.updateStatus(id, event.target.value).subscribe({
-            next: () => this.loadProjects(), error: (e: any) => alert(e.error?.message || 'Error updating status')
+            next: () => this.loadProjects(), error: (e: any) => this.notif.error(e.error?.message || 'Error updating status')
         });
     }
 
     sendRequest() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         const data = { ...this.newRequest, projectId: this.selectedProject().id };
         this.requestService.sendRequest(data).subscribe({
-            next: () => { this.showSendRequest.set(false); this.selectProject(this.selectedProject()); },
-            error: (e: any) => alert(e.error?.message || 'Error sending request')
+            next: () => { 
+                this.isLoading.set(false);
+                this.showSendRequest.set(false); 
+                this.notif.success('Sourcing request sent!');
+                this.selectProject(this.selectedProject()); 
+            },
+            error: (e: any) => {
+              this.isLoading.set(false);
+              this.notif.error(e.error?.message || 'Error sending request');
+            }
         });
     }
 
     approveRequest(id: number) {
         this.requestService.approve(id).subscribe({
-            next: () => this.selectProject(this.selectedProject()),
-            error: (e: any) => alert(e.error?.message || 'Error')
+            next: () => { this.notif.success('Request approved'); this.selectProject(this.selectedProject()); },
+            error: (e: any) => this.notif.error(e.error?.message || 'Error')
         });
     }
 
     rejectRequest(id: number) {
         this.requestService.reject(id).subscribe({
-            next: () => this.selectProject(this.selectedProject()),
-            error: (e: any) => alert(e.error?.message || 'Error')
+            next: () => { this.notif.success('Request rejected'); this.selectProject(this.selectedProject()); },
+            error: (e: any) => this.notif.error(e.error?.message || 'Error')
         });
     }
 
     createQuote() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         const data = { ...this.newQuote, projectId: this.selectedProject().id, lineItemsJson: '[]' };
         this.quoteService.createQuote(data).subscribe({
             next: (q: any) => {
                 this.quoteService.send(q.id).subscribe({
-                    next: () => { this.showCreateQuote.set(false); alert('Quote created and sent to client!'); },
-                    error: () => { this.showCreateQuote.set(false); alert('Quote created but failed to send'); }
+                    next: () => { 
+                      this.isLoading.set(false);
+                      this.showCreateQuote.set(false); 
+                      this.notif.success('Quote created and sent to client!'); 
+                    },
+                    error: () => { 
+                      this.isLoading.set(false);
+                      this.showCreateQuote.set(false); 
+                      this.notif.error('Quote created but failed to send'); 
+                    }
                 });
             },
-            error: (e: any) => alert(e.error?.message || 'Error creating quote')
+            error: (e: any) => {
+              this.isLoading.set(false);
+              this.notif.error(e.error?.message || 'Error creating quote');
+            }
         });
     }
 

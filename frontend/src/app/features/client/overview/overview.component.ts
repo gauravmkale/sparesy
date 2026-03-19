@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectService } from '../../../core/services/project.service';
 import { QuoteService } from '../../../core/services/quote.service';
@@ -16,15 +16,15 @@ import { TransactionService } from '../../../core/services/transaction.service';
       <div class="grid grid-cols-3 gap-4 mb-8">
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">My Projects</p>
-          <p class="text-3xl font-bold text-white mt-2">{{ projects.length }}</p>
+          <p class="text-3xl font-bold text-white mt-2">{{ projects().length }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Pending Quotes</p>
-          <p class="text-3xl font-bold text-indigo-400 mt-2">{{ pendingQuotes }}</p>
+          <p class="text-3xl font-bold text-indigo-400 mt-2">{{ pendingQuotes() }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Cost</p>
-          <p class="text-3xl font-bold text-amber-400 mt-2">₹{{ totalCost | number }}</p>
+          <p class="text-3xl font-bold text-amber-400 mt-2">₹{{ totalCost() | number }}</p>
         </div>
       </div>
 
@@ -43,7 +43,7 @@ import { TransactionService } from '../../../core/services/transaction.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let p of projects.slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let p of projects().slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ p.quantity }}</td>
                 <td class="px-5 py-3">
@@ -51,7 +51,7 @@ import { TransactionService } from '../../../core/services/transaction.service';
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ p.submittedAt | date:'mediumDate' }}</td>
               </tr>
-              <tr *ngIf="projects.length === 0">
+              <tr *ngIf="projects().length === 0">
                 <td colspan="4" class="px-5 py-8 text-center text-gray-600">No projects yet</td>
               </tr>
             </tbody>
@@ -62,20 +62,26 @@ import { TransactionService } from '../../../core/services/transaction.service';
   `
 })
 export class ClientOverviewComponent implements OnInit {
-    projects: any[] = [];
-    quotes: any[] = [];
-    pendingQuotes = 0;
-    totalCost = 0;
+    projects = signal<any[]>([]);
+    quotes = signal<any[]>([]);
+    pendingQuotes = signal<number>(0);
+    totalCost = signal<number>(0);
 
-    constructor(private projectService: ProjectService, private quoteService: QuoteService, private txnService: TransactionService) { }
+    private projectService = inject(ProjectService);
+    private quoteService = inject(QuoteService);
+    private txnService = inject(TransactionService);
 
     ngOnInit() {
-        this.projectService.getMyProjects().subscribe({ next: d => this.projects = d || [], error: () => { } });
+        this.projectService.getMyProjects().subscribe({ next: d => this.projects.set(d || []), error: () => { } });
         this.quoteService.getMyQuotes().subscribe({
-            next: d => { this.quotes = d || []; this.pendingQuotes = this.quotes.filter(q => q.status === 'SENT').length; },
+            next: d => { 
+              const qs = d || [];
+              this.quotes.set(qs); 
+              this.pendingQuotes.set(qs.filter((q: any) => q.status === 'SENT').length); 
+            },
             error: () => { }
         });
-        this.txnService.getRevenue('CLIENT_COST').subscribe({ next: d => this.totalCost = d || 0, error: () => { } });
+        this.txnService.getRevenue('CLIENT_COST').subscribe({ next: d => this.totalCost.set(d || 0), error: () => { } });
     }
 
     getStatusClass(status: string): string {

@@ -33,9 +33,10 @@
             </div>
 
             <!-- Submit -->
-            <button type="submit" [disabled]="loginForm.invalid"
-                class="w-full bg-teal-500 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-400 transition-all duration-200 text-sm shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
-                Sign In
+            <button type="submit" [disabled]="loginForm.invalid || isLoading()"
+                class="w-full bg-teal-500 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-400 transition-all duration-200 text-sm shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2">
+                <span *ngIf="isLoading()" class="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                {{ isLoading() ? 'Signing in...' : 'Sign In' }}
             </button>
 
             <p class="text-gray-600 text-sm text-center">

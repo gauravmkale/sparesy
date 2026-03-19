@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductionService } from '../../../core/services/production.service';
 
@@ -26,7 +26,7 @@ import { ProductionService } from '../../../core/services/production.service';
             <tbody>
               <tr *ngFor="let o of orders()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ o.id }}</td>
-                <td class="px-5 py-3 text-white font-medium">{{ o.project?.name }}</td>
+                <td class="px-5 py-3 text-white font-medium">{{ o.project?.name || '—' }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStageClass(o.currentStage)">
                     {{ o.currentStage?.replace('_', ' ') }}
@@ -42,9 +42,9 @@ import { ProductionService } from '../../../core/services/production.service';
                   </div>
                 </td>
                 <td class="px-5 py-3">
-                  <button *ngIf="o.currentStage !== 'READY'" (click)="advance(o.id)"
-                    class="text-xs px-3 py-1.5 rounded-lg bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 transition font-medium">
-                    Advance →
+                  <button *ngIf="o.currentStage !== 'READY'" (click)="advance(o.id)" [disabled]="isLoading()"
+                    class="text-xs px-3 py-1.5 rounded-lg bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium">
+                    {{ isLoading() ? '...' : 'Advance →' }}
                   </button>
                   <span *ngIf="o.currentStage === 'READY'" class="text-emerald-400 text-xs font-semibold">✓ Complete</span>
                 </td>
@@ -61,15 +61,22 @@ import { ProductionService } from '../../../core/services/production.service';
 })
 export class MfgProductionComponent implements OnInit {
     orders = signal<any[]>([]);
+    isLoading = signal<boolean>(false);
     stages = ['COMPONENT_PREP', 'PCB_FABRICATION', 'SMT_ASSEMBLY', 'SOLDERING', 'QC_INSPECTION', 'PACKAGING', 'READY'];
 
-    constructor(private prodService: ProductionService) { }
+    constructor(
+      private prodService: ProductionService,
+      private cdr: ChangeDetectorRef
+    ) { }
 
     ngOnInit() { this.load(); }
 
     load() {
         this.prodService.getAll().subscribe({
-            next: d => this.orders.set(d || []),
+            next: d => {
+              this.orders.set(d || []);
+              this.cdr.detectChanges();
+            },
             error: () => { }
         });
     }
@@ -85,8 +92,17 @@ export class MfgProductionComponent implements OnInit {
     }
 
     advance(id: number) {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.prodService.advanceStage(id).subscribe({
-            next: () => this.load(), error: (e: any) => alert(e.error?.message || 'Error')
+            next: () => {
+              this.isLoading.set(false);
+              this.load();
+            },
+            error: (e: any) => {
+              this.isLoading.set(false);
+              alert(e.error?.message || 'Error');
+            }
         });
     }
 }

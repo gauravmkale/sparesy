@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { QuoteService } from '../../../core/services/quote.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-client-quotes',
@@ -29,7 +30,7 @@ import { QuoteService } from '../../../core/services/quote.service';
             <tbody>
               <tr *ngFor="let q of quotes()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ q.id }}</td>
-                <td class="px-5 py-3 text-white font-medium">{{ q.project?.name }}</td>
+                <td class="px-5 py-3 text-white font-medium">{{ q.project?.name || '—' }}</td>
                 <td class="px-5 py-3 text-indigo-400 font-semibold">₹{{ q.totalPrice | number }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ q.leadTimeDays }} days</td>
                 <td class="px-5 py-3">
@@ -38,11 +39,17 @@ import { QuoteService } from '../../../core/services/quote.service';
                 <td class="px-5 py-3 text-gray-500 max-w-[200px] truncate">{{ q.notes || '—' }}</td>
                 <td class="px-5 py-3">
                   <div *ngIf="q.status === 'SENT'" class="flex gap-2">
-                    <button (click)="approve(q.id)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition">Approve</button>
-                    <button (click)="showRejectModal(q)" class="text-xs px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition">Reject</button>
+                    <button (click)="approve(q.id)" [disabled]="isLoading()"
+                      class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition">
+                      {{ isLoading() ? '...' : 'Approve' }}
+                    </button>
+                    <button (click)="showRejectModal(q)" [disabled]="isLoading()"
+                      class="text-xs px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-50 transition">
+                      Reject
+                    </button>
                   </div>
-                  <span *ngIf="q.status === 'APPROVED'" class="text-emerald-400 text-xs">✓ Approved</span>
-                  <span *ngIf="q.status === 'REJECTED'" class="text-red-400 text-xs">✗ Rejected</span>
+                  <span *ngIf="q.status === 'APPROVED'" class="text-emerald-400 text-xs font-semibold">✓ Approved</span>
+                  <span *ngIf="q.status === 'REJECTED'" class="text-red-400 text-xs font-semibold">✗ Rejected</span>
                 </td>
               </tr>
               <tr *ngIf="quotes().length === 0">
@@ -64,7 +71,10 @@ import { QuoteService } from '../../../core/services/quote.service';
           </div>
           <div class="flex justify-end gap-3">
             <button (click)="rejectingQuote.set(null)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
-            <button (click)="reject()" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-400 transition">Reject Quote</button>
+            <button (click)="reject()" [disabled]="isLoading()"
+              class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-400 disabled:opacity-50 transition">
+              {{ isLoading() ? 'Rejecting...' : 'Reject Quote' }}
+            </button>
           </div>
         </div>
       </div>
@@ -74,9 +84,11 @@ import { QuoteService } from '../../../core/services/quote.service';
 export class ClientQuotesComponent implements OnInit {
     quotes = signal<any[]>([]);
     rejectingQuote = signal<any>(null);
+    isLoading = signal<boolean>(false);
     rejectNote = '';
 
-    constructor(private quoteService: QuoteService) { }
+    private quoteService = inject(QuoteService);
+    private notif = inject(NotificationService);
 
     ngOnInit() { this.load(); }
 
@@ -88,22 +100,44 @@ export class ClientQuotesComponent implements OnInit {
     }
 
     approve(id: number) {
-        this.quoteService.approve(id).subscribe({ next: () => this.load(), error: (e: any) => alert(e.error?.message || 'Error') });
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
+        this.quoteService.approve(id).subscribe({ 
+          next: () => {
+            this.isLoading.set(false);
+            this.notif.success('Quote approved! Production will start soon.');
+            this.load();
+          }, 
+          error: (e: any) => {
+            this.isLoading.set(false);
+            this.notif.error(e.error?.message || 'Error approving quote');
+          }
+        });
     }
 
     showRejectModal(q: any) { this.rejectingQuote.set(q); this.rejectNote = ''; }
 
     reject() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.quoteService.reject(this.rejectingQuote().id, this.rejectNote).subscribe({
-            next: () => { this.rejectingQuote.set(null); this.load(); },
-            error: (e: any) => alert(e.error?.message || 'Error')
+            next: () => { 
+                this.isLoading.set(false);
+                this.rejectingQuote.set(null); 
+                this.notif.info('Quote rejected');
+                this.load(); 
+            },
+            error: (e: any) => {
+              this.isLoading.set(false);
+              this.notif.error(e.error?.message || 'Error rejecting quote');
+            }
         });
     }
 
     getQuoteStatusClass(status: string): string {
         const map: any = {
             'DRAFT': 'bg-gray-500/20 text-gray-400', 'SENT': 'bg-blue-500/20 text-blue-400',
-            'APPROVED': 'bg-emerald-500/20 text-teal-400', 'REJECTED': 'bg-red-500/20 text-red-400'
+            'APPROVED': 'bg-emerald-500/20 text-emerald-400', 'REJECTED': 'bg-red-500/20 text-red-400'
         };
         return map[status] || 'bg-gray-500/20 text-gray-400';
     }

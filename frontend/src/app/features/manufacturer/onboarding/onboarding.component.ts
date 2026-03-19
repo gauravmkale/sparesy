@@ -1,6 +1,7 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompanyService } from '../../../core/services/company.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-onboarding',
@@ -46,13 +47,13 @@ import { CompanyService } from '../../../core/services/company.service';
                 <td class="px-5 py-3 text-gray-500 font-mono text-xs">{{ c.gstNumber }}</td>
                 <td class="px-5 py-3">
                   <div class="flex gap-2">
-                    <button (click)="approve(c.id)"
-                      class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition font-medium">
-                      Approve
+                    <button (click)="approve(c.id)" [disabled]="isLoading()"
+                      class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition font-medium">
+                      {{ isLoading() ? '...' : 'Approve' }}
                     </button>
-                    <button (click)="reject(c.id)"
-                      class="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition font-medium">
-                      Reject
+                    <button (click)="reject(c.id)" [disabled]="isLoading()"
+                      class="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-50 transition font-medium">
+                      {{ isLoading() ? '...' : 'Reject' }}
                     </button>
                   </div>
                 </td>
@@ -69,10 +70,10 @@ import { CompanyService } from '../../../core/services/company.service';
 })
 export class MfgOnboardingComponent implements OnInit {
     pending = signal<any[]>([]);
+    isLoading = signal<boolean>(false);
 
-    constructor(
-      private companyService: CompanyService
-    ) { }
+    private companyService = inject(CompanyService);
+    private notif = inject(NotificationService);
 
     ngOnInit() { this.load(); }
 
@@ -84,16 +85,34 @@ export class MfgOnboardingComponent implements OnInit {
     }
 
     approve(id: number) {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.companyService.approve(id).subscribe({
-            next: () => this.load(),
-            error: (e: any) => alert(e.error?.message || 'Error approving')
+            next: () => { 
+                this.isLoading.set(false);
+                this.notif.success('Company approved successfully');
+                this.load(); 
+            },
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error approving');
+            }
         });
     }
 
     reject(id: number) {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.companyService.reject(id).subscribe({
-            next: () => this.load(),
-            error: (e: any) => alert(e.error?.message || 'Error rejecting')
+            next: () => { 
+                this.isLoading.set(false);
+                this.notif.info('Company registration rejected');
+                this.load(); 
+            },
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error rejecting');
+            }
         });
     }
 }

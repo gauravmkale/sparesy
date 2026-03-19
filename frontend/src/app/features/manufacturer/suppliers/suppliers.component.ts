@@ -1,9 +1,10 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyService } from '../../../core/services/company.service';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { HttpClient } from '@angular/common/http';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-suppliers',
@@ -55,7 +56,7 @@ import { HttpClient } from '@angular/common/http';
               {{ generatedLink() ? 'Done' : 'Cancel' }}
             </button>
             <button *ngIf="!generatedLink()" (click)="generateInvite()" [disabled]="isGenerating()"
-              class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
               {{ isGenerating() ? 'Generating...' : 'Generate Link' }}
             </button>
           </div>
@@ -68,21 +69,23 @@ import { HttpClient } from '@angular/common/http';
           (click)="selectSupplier(s)"
           class="bg-[#141414] border rounded-xl p-5 cursor-pointer transition-all duration-150 hover:border-teal-500/50"
           [ngClass]="{ 'border-teal-500/50 bg-teal-500/5': selectedSupplier()?.id === s.id, 'border-gray-800/60': selectedSupplier()?.id !== s.id }">
-          <h3 class="text-white font-semibold">{{ s.name }}</h3>
-          <p class="text-gray-500 text-sm mt-1">{{ s.email }}</p>
-          <p class="text-gray-600 text-xs mt-1">{{ s.contactPersonName }}</p>
+          <h3 class="text-white font-semibold">{{ s?.name || 'Untitled Supplier' }}</h3>
+          <p class="text-gray-500 text-sm mt-1">{{ s?.email }}</p>
+          <p class="text-gray-600 text-xs mt-1">{{ s?.contactPersonName }}</p>
         </div>
-        <div *ngIf="suppliers().length === 0" class="col-span-3 text-center py-8 text-gray-600">
-          No suppliers registered yet. Generate an invite link to add one.
+        <div *ngIf="suppliers().length === 0" class="col-span-3 text-center py-12 bg-[#111111] border border-gray-800/40 rounded-2xl">
+          <p class="text-gray-600">No suppliers registered yet.</p>
+          <button (click)="showInviteModal.set(true)" class="text-teal-400 text-sm mt-2 hover:underline">Generate an invite link</button>
         </div>
       </div>
 
       <!-- Supplier Catalog -->
       <div *ngIf="selectedSupplier()" class="bg-[#141414] border border-gray-800/60 rounded-xl">
-        <div class="px-5 py-4 border-b border-gray-800/60">
+        <div class="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
           <h3 class="text-sm font-semibold text-white uppercase tracking-wider">
-            {{ selectedSupplier().name }} — Catalog
+            {{ selectedSupplier()?.name }} — Catalog
           </h3>
+          <button (click)="selectedSupplier.set(null)" class="text-gray-500 hover:text-white text-xs transition">Close Catalog ✕</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -96,15 +99,15 @@ import { HttpClient } from '@angular/common/http';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let sc of supplierCatalog()" class="border-t border-gray-800/40">
-                <td class="px-5 py-3 text-white">{{ sc.component?.name }}</td>
-                <td class="px-5 py-3 text-teal-400 font-mono text-xs">{{ sc.partNumber || '—' }}</td>
-                <td class="px-5 py-3 text-gray-300">₹{{ sc.unitPrice }}</td>
+              <tr *ngFor="let sc of supplierCatalog()" class="border-t border-gray-800/40 hover:bg-white/[0.01] transition">
+                <td class="px-5 py-3 text-white">{{ sc.component?.name || 'Unknown' }}</td>
+                <td class="px-5 py-3 text-teal-400 font-mono text-xs">{{ sc.component?.partNumber || '—' }}</td>
+                <td class="px-5 py-3 text-gray-300">₹{{ sc.unitPrice | number }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ sc.stockQuantity }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ sc.leadTimeDays }} days</td>
               </tr>
               <tr *ngIf="supplierCatalog().length === 0">
-                <td colspan="5" class="px-5 py-6 text-center text-gray-600">No catalog items</td>
+                <td colspan="5" class="px-5 py-8 text-center text-gray-600 italic">This supplier hasn't added any components to their catalog yet.</td>
               </tr>
             </tbody>
           </table>
@@ -125,13 +128,14 @@ export class MfgSuppliersComponent implements OnInit {
     
     inviteEmail = '';
 
-    constructor(
-        private companyService: CompanyService,
-        private supplierCompService: SupplierComponentService,
-        private http: HttpClient
-    ) { }
+    private companyService = inject(CompanyService);
+    private supplierCompService = inject(SupplierComponentService);
+    private http = inject(HttpClient);
+    private notif = inject(NotificationService);
 
-    ngOnInit() {
+    ngOnInit() { this.load(); }
+
+    load() {
         this.companyService.getApprovedSuppliers().subscribe({
             next: d => this.suppliers.set(d || []),
             error: () => { }
@@ -154,10 +158,11 @@ export class MfgSuppliersComponent implements OnInit {
             next: (token: string) => {
                 this.isGenerating.set(false);
                 this.generatedLink.set(`${window.location.origin}/auth/register?token=${token}`);
+                this.notif.success('Invite link generated successfully');
             },
             error: (e: any) => {
                 this.isGenerating.set(false);
-                alert(e.error?.message || 'Error generating invite');
+                this.notif.error(e.error?.message || 'Error generating invite');
             }
         });
     }
@@ -167,6 +172,7 @@ export class MfgSuppliersComponent implements OnInit {
         if (!link) return;
         navigator.clipboard.writeText(link).then(() => {
             this.copied.set(true);
+            this.notif.info('Link copied to clipboard');
             setTimeout(() => this.copied.set(false), 2000);
         });
     }
