@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TransactionService } from '../../../core/services/transaction.service';
 
@@ -13,7 +13,7 @@ import { TransactionService } from '../../../core/services/transaction.service';
 
       <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 mb-6">
         <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Revenue</p>
-        <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue | number }}</p>
+        <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue() | number }}</p>
       </div>
 
       <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
@@ -30,17 +30,17 @@ import { TransactionService } from '../../../core/services/transaction.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let t of transactions" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let t of transactions()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ t.id }}</td>
-                <td class="px-5 py-3 text-white">{{ t.projectName || '—' }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ t.componentName || '—' }}</td>
+                <td class="px-5 py-3 text-white">{{ t.project?.name || '—' }}</td>
+                <td class="px-5 py-3 text-gray-400">{{ t.component?.name || '—' }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-400">{{ t.type }}</span>
                 </td>
                 <td class="px-5 py-3 text-emerald-400 font-semibold">₹{{ t.amount | number }}</td>
                 <td class="px-5 py-3 text-gray-500">{{ t.createdAt | date:'shortDate' }}</td>
               </tr>
-              <tr *ngIf="transactions.length === 0">
+              <tr *ngIf="transactions().length === 0">
                 <td colspan="6" class="px-5 py-8 text-center text-gray-600">No transactions yet</td>
               </tr>
             </tbody>
@@ -51,13 +51,19 @@ import { TransactionService } from '../../../core/services/transaction.service';
   `
 })
 export class SupTransactionsComponent implements OnInit {
-    transactions: any[] = [];
-    totalRevenue = 0;
+    transactions = signal<any[]>([]);
+    totalRevenue = signal<number>(0);
 
     constructor(private txnService: TransactionService) { }
 
     ngOnInit() {
-        this.txnService.getMy().subscribe({ next: d => this.transactions = d || [], error: () => { } });
-        this.txnService.getRevenue('SUPPLIER_REVENUE').subscribe({ next: d => this.totalRevenue = d || 0, error: () => { } });
+        this.txnService.getMy().subscribe({
+            next: d => this.transactions.set(d || []),
+            error: () => { }
+        });
+        this.txnService.getRevenue('SUPPLIER_REVENUE').subscribe({
+            next: d => this.totalRevenue.set(d || 0),
+            error: () => { }
+        });
     }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductionService } from '../../../core/services/production.service';
 
@@ -24,9 +24,9 @@ import { ProductionService } from '../../../core/services/production.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let o of orders" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let o of orders()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ o.id }}</td>
-                <td class="px-5 py-3 text-white font-medium">{{ o.projectName }}</td>
+                <td class="px-5 py-3 text-white font-medium">{{ o.project?.name }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStageClass(o.currentStage)">
                     {{ o.currentStage?.replace('_', ' ') }}
@@ -49,7 +49,7 @@ import { ProductionService } from '../../../core/services/production.service';
                   <span *ngIf="o.currentStage === 'READY'" class="text-emerald-400 text-xs font-semibold">✓ Complete</span>
                 </td>
               </tr>
-              <tr *ngIf="orders.length === 0">
+              <tr *ngIf="orders().length === 0">
                 <td colspan="5" class="px-5 py-8 text-center text-gray-600">No active production orders</td>
               </tr>
             </tbody>
@@ -60,14 +60,19 @@ import { ProductionService } from '../../../core/services/production.service';
   `
 })
 export class MfgProductionComponent implements OnInit {
-    orders: any[] = [];
+    orders = signal<any[]>([]);
     stages = ['COMPONENT_PREP', 'PCB_FABRICATION', 'SMT_ASSEMBLY', 'SOLDERING', 'QC_INSPECTION', 'PACKAGING', 'READY'];
 
     constructor(private prodService: ProductionService) { }
 
     ngOnInit() { this.load(); }
 
-    load() { this.prodService.getAll().subscribe({ next: d => this.orders = d || [], error: () => { } }); }
+    load() {
+        this.prodService.getAll().subscribe({
+            next: d => this.orders.set(d || []),
+            error: () => { }
+        });
+    }
 
     getStageIndex(stage: string): number { return this.stages.indexOf(stage); }
 

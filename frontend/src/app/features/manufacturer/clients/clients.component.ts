@@ -1,10 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyService } from '../../../core/services/company.service';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef } from '@angular/core';
-
 
 @Component({
     selector: 'app-mfg-clients',
@@ -17,34 +15,34 @@ import { ChangeDetectorRef } from '@angular/core';
           <h1 class="text-2xl font-semibold text-white mb-1">Clients</h1>
           <p class="text-gray-500 text-sm">View all registered clients and generate invite links</p>
         </div>
-        <button (click)="showInviteModal = true"
+        <button (click)="showInviteModal.set(true)"
           class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition">
           + Add Client
         </button>
       </div>
 
       <!-- Invite Modal -->
-      <div *ngIf="showInviteModal"
+      <div *ngIf="showInviteModal()"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         (click)="closeInviteModal()">
         <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4"
           (click)="$event.stopPropagation()">
           <h3 class="text-lg font-semibold text-white">Invite New Client</h3>
 
-          <div *ngIf="!generatedLink">
+          <div *ngIf="!generatedLink()">
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Client Email (optional)</label>
             <input type="email" [(ngModel)]="inviteEmail" placeholder="client@company.com"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p class="text-gray-600 text-xs mt-2">Leave blank to generate a generic invite link</p>
           </div>
 
-          <div *ngIf="generatedLink" class="space-y-3">
+          <div *ngIf="generatedLink()" class="space-y-3">
             <p class="text-gray-400 text-sm">Share this link with the client:</p>
             <div class="flex items-center gap-2 bg-[#1a1a1a] border border-gray-700 rounded-xl px-3 py-2">
-              <span class="text-indigo-400 text-xs font-mono flex-1 truncate">{{ generatedLink }}</span>
+              <span class="text-indigo-400 text-xs font-mono flex-1 truncate">{{ generatedLink() }}</span>
               <button (click)="copyLink()"
                 class="text-xs px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 transition shrink-0">
-                {{ copied ? '✓ Copied' : 'Copy' }}
+                {{ copied() ? '✓ Copied' : 'Copy' }}
               </button>
             </div>
             <p class="text-gray-600 text-xs">This link expires in 7 days and can only be used once.</p>
@@ -53,11 +51,11 @@ import { ChangeDetectorRef } from '@angular/core';
           <div class="flex justify-end gap-3 mt-4">
             <button (click)="closeInviteModal()"
               class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">
-              {{ generatedLink ? 'Done' : 'Cancel' }}
+              {{ generatedLink() ? 'Done' : 'Cancel' }}
             </button>
-            <button *ngIf="!generatedLink" (click)="generateInvite()" [disabled]="isGenerating"
+            <button *ngIf="!generatedLink()" (click)="generateInvite()" [disabled]="isGenerating()"
               class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ isGenerating ? 'Generating...' : 'Generate Link' }}
+              {{ isGenerating() ? 'Generating...' : 'Generate Link' }}
             </button>
           </div>
         </div>
@@ -65,7 +63,7 @@ import { ChangeDetectorRef } from '@angular/core';
 
       <!-- Clients Grid -->
       <div class="grid grid-cols-3 gap-4">
-        <div *ngFor="let c of clients"
+        <div *ngFor="let c of clients()"
           class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <div class="flex items-start justify-between">
             <div>
@@ -81,7 +79,7 @@ import { ChangeDetectorRef } from '@angular/core';
             {{ c.address }}
           </div>
         </div>
-        <div *ngIf="clients.length === 0" class="col-span-3 text-center py-8 text-gray-600">
+        <div *ngIf="clients().length === 0" class="col-span-3 text-center py-8 text-gray-600">
           No clients registered yet. Generate an invite link to add one.
         </div>
       </div>
@@ -89,61 +87,55 @@ import { ChangeDetectorRef } from '@angular/core';
   `
 })
 export class MfgClientsComponent implements OnInit {
-    clients: any[] = [];
-    showInviteModal = false;
+    clients = signal<any[]>([]);
+    showInviteModal = signal<boolean>(false);
+    generatedLink = signal<string | null>(null);
+    copied = signal<boolean>(false);
+    isGenerating = signal<boolean>(false);
+    
     inviteEmail = '';
-    generatedLink: string | null = null;
-    copied = false;
-    isGenerating = false;
-
 
     constructor(
         private companyService: CompanyService,
-        private http: HttpClient,
-        private cdr : ChangeDetectorRef
+        private http: HttpClient
     ) { }
 
     ngOnInit() {
         this.companyService.getApprovedClients().subscribe({
-           next: d => {
-            this.clients = d || [];
-            this.cdr.detectChanges();
-           },
-          error: () => { } });
+            next: d => this.clients.set(d || []),
+            error: () => { }
+        });
     }
 
-
     generateInvite() {
-        if (this.isGenerating) return;
-        this.isGenerating = true;
+        if (this.isGenerating()) return;
+        this.isGenerating.set(true);
         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
         this.http.post('/api/auth/invite', { email, type: 'CLIENT' }, { responseType: 'text' }).subscribe({
             next: (token: string) => {
-                console.log('Success', token);
-                this.isGenerating = false;
-                this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
-                this.cdr.detectChanges();
+                this.isGenerating.set(false);
+                this.generatedLink.set(`${window.location.origin}/auth/register?token=${token}`);
             },
             error: (e: any) => {
-                console.log('Error',e);
-                this.isGenerating = false;
+                this.isGenerating.set(false);
                 alert(e.error?.message || 'Error generating invite');
             }
         });
     }
 
     copyLink() {
-        if (!this.generatedLink) return;
-        navigator.clipboard.writeText(this.generatedLink).then(() => {
-            this.copied = true;
-            setTimeout(() => this.copied = false, 2000);
+        const link = this.generatedLink();
+        if (!link) return;
+        navigator.clipboard.writeText(link).then(() => {
+            this.copied.set(true);
+            setTimeout(() => this.copied.set(false), 2000);
         });
     }
 
     closeInviteModal() {
-        this.showInviteModal = false;
+        this.showInviteModal.set(false);
         this.inviteEmail = '';
-        this.generatedLink = null;
-        this.copied = false;
+        this.generatedLink.set(null);
+        this.copied.set(false);
     }
 }

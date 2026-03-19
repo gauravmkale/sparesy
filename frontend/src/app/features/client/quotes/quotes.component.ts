@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { QuoteService } from '../../../core/services/quote.service';
@@ -27,9 +27,9 @@ import { QuoteService } from '../../../core/services/quote.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let q of quotes" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let q of quotes()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ q.id }}</td>
-                <td class="px-5 py-3 text-white font-medium">{{ q.projectName }}</td>
+                <td class="px-5 py-3 text-white font-medium">{{ q.project?.name }}</td>
                 <td class="px-5 py-3 text-indigo-400 font-semibold">₹{{ q.totalPrice | number }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ q.leadTimeDays }} days</td>
                 <td class="px-5 py-3">
@@ -45,7 +45,7 @@ import { QuoteService } from '../../../core/services/quote.service';
                   <span *ngIf="q.status === 'REJECTED'" class="text-red-400 text-xs">✗ Rejected</span>
                 </td>
               </tr>
-              <tr *ngIf="quotes.length === 0">
+              <tr *ngIf="quotes().length === 0">
                 <td colspan="7" class="px-5 py-8 text-center text-gray-600">No quotes received yet</td>
               </tr>
             </tbody>
@@ -54,16 +54,16 @@ import { QuoteService } from '../../../core/services/quote.service';
       </div>
 
       <!-- Reject Modal -->
-      <div *ngIf="rejectingQuote" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="rejectingQuote = null">
+      <div *ngIf="rejectingQuote()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="rejectingQuote.set(null)">
         <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
-          <h3 class="text-lg font-semibold text-white">Reject Quote #{{ rejectingQuote.id }}</h3>
+          <h3 class="text-lg font-semibold text-white">Reject Quote #{{ rejectingQuote().id }}</h3>
           <div>
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Reason (optional)</label>
             <textarea [(ngModel)]="rejectNote" rows="3"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-red-500 mt-1 resize-none"></textarea>
           </div>
           <div class="flex justify-end gap-3">
-            <button (click)="rejectingQuote = null" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+            <button (click)="rejectingQuote.set(null)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
             <button (click)="reject()" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-400 transition">Reject Quote</button>
           </div>
         </div>
@@ -72,25 +72,30 @@ import { QuoteService } from '../../../core/services/quote.service';
   `
 })
 export class ClientQuotesComponent implements OnInit {
-    quotes: any[] = [];
-    rejectingQuote: any = null;
+    quotes = signal<any[]>([]);
+    rejectingQuote = signal<any>(null);
     rejectNote = '';
 
     constructor(private quoteService: QuoteService) { }
 
     ngOnInit() { this.load(); }
 
-    load() { this.quoteService.getMyQuotes().subscribe({ next: d => this.quotes = d || [], error: () => { } }); }
+    load() {
+        this.quoteService.getMyQuotes().subscribe({
+            next: d => this.quotes.set(d || []),
+            error: () => { }
+        });
+    }
 
     approve(id: number) {
         this.quoteService.approve(id).subscribe({ next: () => this.load(), error: (e: any) => alert(e.error?.message || 'Error') });
     }
 
-    showRejectModal(q: any) { this.rejectingQuote = q; this.rejectNote = ''; }
+    showRejectModal(q: any) { this.rejectingQuote.set(q); this.rejectNote = ''; }
 
     reject() {
-        this.quoteService.reject(this.rejectingQuote.id, this.rejectNote).subscribe({
-            next: () => { this.rejectingQuote = null; this.load(); },
+        this.quoteService.reject(this.rejectingQuote().id, this.rejectNote).subscribe({
+            next: () => { this.rejectingQuote.set(null); this.load(); },
             error: (e: any) => alert(e.error?.message || 'Error')
         });
     }
@@ -98,7 +103,7 @@ export class ClientQuotesComponent implements OnInit {
     getQuoteStatusClass(status: string): string {
         const map: any = {
             'DRAFT': 'bg-gray-500/20 text-gray-400', 'SENT': 'bg-blue-500/20 text-blue-400',
-            'APPROVED': 'bg-emerald-500/20 text-emerald-400', 'REJECTED': 'bg-red-500/20 text-red-400'
+            'APPROVED': 'bg-emerald-500/20 text-teal-400', 'REJECTED': 'bg-red-500/20 text-red-400'
         };
         return map[status] || 'bg-gray-500/20 text-gray-400';
     }

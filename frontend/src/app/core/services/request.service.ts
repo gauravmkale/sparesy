@@ -21,7 +21,14 @@ export class RequestService {
     }
 
     submitQuote(id: number, data: any): Observable<any> {
-        return this.http.put(`${this.api}/${id}/quote`, data);
+        const deliveryDate = new Date();
+        deliveryDate.setDate(deliveryDate.getDate() + data.deliveryDays);
+        return this.http.put(`${this.api}/${id}/quote`, null, {
+            params: {
+                price: data.quotedPrice.toString(),
+                delivery: deliveryDate.toISOString().slice(0, 19)
+            }
+        });
     }
 
     approve(id: number): Observable<any> {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { RequestService } from '../../../core/services/request.service';
@@ -16,15 +16,15 @@ import { TransactionService } from '../../../core/services/transaction.service';
       <div class="grid grid-cols-3 gap-4 mb-8">
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Catalog Items</p>
-          <p class="text-3xl font-bold text-white mt-2">{{ catalog.length }}</p>
+          <p class="text-3xl font-bold text-white mt-2">{{ catalog().length }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Pending Requests</p>
-          <p class="text-3xl font-bold text-blue-400 mt-2">{{ pendingRequests }}</p>
+          <p class="text-3xl font-bold text-blue-400 mt-2">{{ pendingRequests() }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Revenue</p>
-          <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue | number }}</p>
+          <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue() | number }}</p>
         </div>
       </div>
 
@@ -44,9 +44,9 @@ import { TransactionService } from '../../../core/services/transaction.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of requests.slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
-                <td class="px-5 py-3 text-white">{{ r.projectName }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ r.componentName }}</td>
+              <tr *ngFor="let r of requests().slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+                <td class="px-5 py-3 text-white">{{ r.project?.name }}</td>
+                <td class="px-5 py-3 text-gray-400">{{ r.component?.name }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ r.quantityNeeded }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
@@ -55,7 +55,7 @@ import { TransactionService } from '../../../core/services/transaction.service';
                   </span>
                 </td>
               </tr>
-              <tr *ngIf="requests.length === 0">
+              <tr *ngIf="requests().length === 0">
                 <td colspan="4" class="px-5 py-8 text-center text-gray-600">No requests yet</td>
               </tr>
             </tbody>
@@ -66,10 +66,10 @@ import { TransactionService } from '../../../core/services/transaction.service';
   `
 })
 export class SupOverviewComponent implements OnInit {
-    catalog: any[] = [];
-    requests: any[] = [];
-    pendingRequests = 0;
-    totalRevenue = 0;
+    catalog = signal<any[]>([]);
+    requests = signal<any[]>([]);
+    pendingRequests = signal<number>(0);
+    totalRevenue = signal<number>(0);
 
     constructor(
         private supCompService: SupplierComponentService,
@@ -78,11 +78,21 @@ export class SupOverviewComponent implements OnInit {
     ) { }
 
     ngOnInit() {
-        this.supCompService.getMyCatalog().subscribe({ next: d => this.catalog = d || [], error: () => { } });
-        this.reqService.getMyRequests().subscribe({
-            next: d => { this.requests = d || []; this.pendingRequests = this.requests.filter(r => r.status === 'PENDING').length; },
+        this.supCompService.getMyCatalog().subscribe({
+            next: d => this.catalog.set(d || []),
             error: () => { }
         });
-        this.txnService.getRevenue('SUPPLIER_REVENUE').subscribe({ next: d => this.totalRevenue = d || 0, error: () => { } });
+        this.reqService.getMyRequests().subscribe({
+            next: d => {
+                const reqs = d || [];
+                this.requests.set(reqs);
+                this.pendingRequests.set(reqs.filter(r => r.status === 'PENDING').length);
+            },
+            error: () => { }
+        });
+        this.txnService.getRevenue('SUPPLIER_REVENUE').subscribe({
+            next: d => this.totalRevenue.set(d || 0),
+            error: () => { }
+        });
     }
 }

@@ -49,7 +49,6 @@ public class Transaction {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    // Human readable note — e.g. "Component supply for Project ABC"
     @Column(length = 500)
     private String description;
 

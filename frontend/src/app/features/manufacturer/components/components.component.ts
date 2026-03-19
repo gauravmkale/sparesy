@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ComponentService } from '../../../core/services/component.service';
@@ -14,14 +14,14 @@ import { ComponentService } from '../../../core/services/component.service';
           <h1 class="text-2xl font-semibold text-white mb-1">Components</h1>
           <p class="text-gray-500 text-sm">Master component catalog</p>
         </div>
-        <button (click)="showAddForm = !showAddForm"
+        <button (click)="showAddForm.set(!showAddForm())"
           class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">
-          {{ showAddForm ? 'Cancel' : '+ Add Component' }}
+          {{ showAddForm() ? 'Cancel' : '+ Add Component' }}
         </button>
       </div>
 
       <!-- Add Form -->
-      <div *ngIf="showAddForm" class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 mb-6">
+      <div *ngIf="showAddForm()" class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 mb-6">
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Name</label>
@@ -67,14 +67,14 @@ import { ComponentService } from '../../../core/services/component.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let c of components" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let c of components()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ c.id }}</td>
                 <td class="px-5 py-3 text-white font-medium">{{ c.name }}</td>
                 <td class="px-5 py-3 text-teal-400 font-mono text-xs">{{ c.partNumber }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ c.category }}</td>
                 <td class="px-5 py-3 text-gray-500">{{ c.description }}</td>
               </tr>
-              <tr *ngIf="components.length === 0">
+              <tr *ngIf="components().length === 0">
                 <td colspan="5" class="px-5 py-8 text-center text-gray-600">No components found</td>
               </tr>
             </tbody>
@@ -85,8 +85,9 @@ import { ComponentService } from '../../../core/services/component.service';
   `
 })
 export class MfgComponentsComponent implements OnInit {
-    components: any[] = [];
-    showAddForm = false;
+    components = signal<any[]>([]);
+    showAddForm = signal<boolean>(false);
+    
     searchTerm = '';
     newComp: any = { name: '', partNumber: '', category: '', description: '' };
 
@@ -94,16 +95,28 @@ export class MfgComponentsComponent implements OnInit {
 
     ngOnInit() { this.loadAll(); }
 
-    loadAll() { this.compService.getAll().subscribe({ next: d => this.components = d || [], error: () => { } }); }
+    loadAll() {
+        this.compService.getAll().subscribe({
+            next: d => this.components.set(d || []),
+            error: () => { }
+        });
+    }
 
     searchByPart() {
         if (!this.searchTerm.trim()) return this.loadAll();
-        this.compService.search(this.searchTerm).subscribe({ next: d => this.components = Array.isArray(d) ? d : [d], error: () => this.components = [] });
+        this.compService.search(this.searchTerm).subscribe({
+            next: d => this.components.set(Array.isArray(d) ? d : [d]),
+            error: () => this.components.set([])
+        });
     }
 
     addComponent() {
         this.compService.addComponent(this.newComp).subscribe({
-            next: () => { this.showAddForm = false; this.newComp = { name: '', partNumber: '', category: '', description: '' }; this.loadAll(); },
+            next: () => { 
+                this.showAddForm.set(false); 
+                this.newComp = { name: '', partNumber: '', category: '', description: '' }; 
+                this.loadAll(); 
+            },
             error: (e: any) => alert(e.error?.message || 'Error adding component')
         });
     }

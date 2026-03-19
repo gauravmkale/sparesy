@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompanyService } from '../../../core/services/company.service';
 
@@ -13,9 +13,9 @@ import { CompanyService } from '../../../core/services/company.service';
           <h1 class="text-2xl font-semibold text-white mb-1">Onboarding Approvals</h1>
           <p class="text-gray-500 text-sm">Review and approve new client and supplier registrations</p>
         </div>
-        <span *ngIf="pending.length > 0"
+        <span *ngIf="pending().length > 0"
           class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold">
-          {{ pending.length }} Pending
+          {{ pending().length }} Pending
         </span>
       </div>
 
@@ -33,7 +33,7 @@ import { CompanyService } from '../../../core/services/company.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let c of pending" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let c of pending()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-white font-medium">{{ c.name }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
@@ -57,7 +57,7 @@ import { CompanyService } from '../../../core/services/company.service';
                   </div>
                 </td>
               </tr>
-              <tr *ngIf="pending.length === 0">
+              <tr *ngIf="pending().length === 0">
                 <td colspan="6" class="px-5 py-8 text-center text-gray-600">No pending approvals</td>
               </tr>
             </tbody>
@@ -68,20 +68,19 @@ import { CompanyService } from '../../../core/services/company.service';
   `
 })
 export class MfgOnboardingComponent implements OnInit {
-    pending: any[] = [];
+    pending = signal<any[]>([]);
 
     constructor(
-      private companyService: CompanyService,
-      private cdr : ChangeDetectorRef  
+      private companyService: CompanyService
     ) { }
 
     ngOnInit() { this.load(); }
 
     load() {
-        this.companyService.getPending().subscribe({ next: d => {
-          this.pending = d || [];
-          this.cdr.detectChanges();}
-          , error: () => { } });
+        this.companyService.getPending().subscribe({
+            next: d => this.pending.set(d || []),
+            error: () => { }
+        });
     }
 
     approve(id: number) {

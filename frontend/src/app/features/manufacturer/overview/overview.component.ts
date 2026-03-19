@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectService } from '../../../core/services/project.service';
 import { ProductionService } from '../../../core/services/production.service';
@@ -18,19 +18,19 @@ import { TransactionService } from '../../../core/services/transaction.service';
       <div class="grid grid-cols-4 gap-4 mb-8">
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Projects</p>
-          <p class="text-3xl font-bold text-white mt-2">{{ projects.length }}</p>
+          <p class="text-3xl font-bold text-white mt-2">{{ projects().length }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Active Production</p>
-          <p class="text-3xl font-bold text-teal-400 mt-2">{{ productionOrders.length }}</p>
+          <p class="text-3xl font-bold text-teal-400 mt-2">{{ productionOrders().length }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Low Stock Alerts</p>
-          <p class="text-3xl font-bold text-amber-400 mt-2">{{ alerts.length }}</p>
+          <p class="text-3xl font-bold text-amber-400 mt-2">{{ alerts().length }}</p>
         </div>
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
           <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Revenue</p>
-          <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue | number }}</p>
+          <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue() | number }}</p>
         </div>
       </div>
 
@@ -50,16 +50,16 @@ import { TransactionService } from '../../../core/services/transaction.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let p of projects.slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let p of projects().slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ p.clientName || '—' }}</td>
+                <td class="px-5 py-3 text-gray-400">{{ p.client?.name || '—' }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
                     [ngClass]="getStatusClass(p.status)">{{ p.status }}</span>
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ p.submittedAt | date:'mediumDate' }}</td>
               </tr>
-              <tr *ngIf="projects.length === 0">
+              <tr *ngIf="projects().length === 0">
                 <td colspan="4" class="px-5 py-8 text-center text-gray-600">No projects yet</td>
               </tr>
             </tbody>
@@ -70,10 +70,10 @@ import { TransactionService } from '../../../core/services/transaction.service';
   `
 })
 export class MfgOverviewComponent implements OnInit {
-    projects: any[] = [];
-    productionOrders: any[] = [];
-    alerts: any[] = [];
-    totalRevenue = 0;
+    projects = signal<any[]>([]);
+    productionOrders = signal<any[]>([]);
+    alerts = signal<any[]>([]);
+    totalRevenue = signal<number>(0);
 
     constructor(
         private projectService: ProjectService,
@@ -83,11 +83,21 @@ export class MfgOverviewComponent implements OnInit {
     ) { }
 
     ngOnInit() {
-        this.projectService.getAllProjects().subscribe({ next: d => this.projects = d || [], error: () => { } });
-        this.productionService.getAll().subscribe({ next: d => this.productionOrders = d || [], error: () => { } });
-        this.inventoryService.getAlerts().subscribe({ next: d => this.alerts = d || [], error: () => { } });
+        this.projectService.getAllProjects().subscribe({
+            next: d => this.projects.set(d || []),
+            error: () => { }
+        });
+        this.productionService.getAll().subscribe({
+            next: d => this.productionOrders.set(d || []),
+            error: () => { }
+        });
+        this.inventoryService.getAlerts().subscribe({
+            next: d => this.alerts.set(d || []),
+            error: () => { }
+        });
         this.transactionService.getRevenue('MANUFACTURER_REVENUE').subscribe({
-            next: d => this.totalRevenue = d || 0, error: () => { }
+            next: d => this.totalRevenue.set(d || 0),
+            error: () => { }
         });
     }
 

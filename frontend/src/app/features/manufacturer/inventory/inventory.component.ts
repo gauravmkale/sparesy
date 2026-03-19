@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InventoryService } from '../../../core/services/inventory.service';
@@ -13,11 +13,11 @@ import { InventoryService } from '../../../core/services/inventory.service';
       <p class="text-gray-500 text-sm mb-6">Stock levels and low stock alerts</p>
 
       <!-- Alerts -->
-      <div *ngIf="alerts.length > 0" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
-        <h3 class="text-amber-400 text-sm font-semibold mb-2">⚠ Low Stock Alerts ({{ alerts.length }})</h3>
+      <div *ngIf="alerts().length > 0" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
+        <h3 class="text-amber-400 text-sm font-semibold mb-2">⚠ Low Stock Alerts ({{ alerts().length }})</h3>
         <div class="flex flex-wrap gap-2">
-          <span *ngFor="let a of alerts" class="px-3 py-1 rounded-lg bg-amber-500/15 text-amber-300 text-xs font-medium">
-            {{ a.componentName || 'Component #' + a.componentId }} — {{ a.quantityOnHand }} left
+          <span *ngFor="let a of alerts()" class="px-3 py-1 rounded-lg bg-amber-500/15 text-amber-300 text-xs font-medium">
+            {{ a.component?.name || 'Component #' + a.componentId }} — {{ a.quantityOnHand }} left
           </span>
         </div>
       </div>
@@ -37,8 +37,8 @@ import { InventoryService } from '../../../core/services/inventory.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of inventory" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
-                <td class="px-5 py-3 text-white font-medium">{{ item.componentName || 'Component #' + item.componentId }}</td>
+              <tr *ngFor="let item of inventory()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+                <td class="px-5 py-3 text-white font-medium">{{ item.component?.name || 'Component #' + item.componentId }}</td>
                 <td class="px-5 py-3 text-gray-300">{{ item.quantityOnHand }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ item.quantityReserved }}</td>
                 <td class="px-5 py-3 text-gray-300">{{ item.availableQuantity }}</td>
@@ -48,7 +48,7 @@ import { InventoryService } from '../../../core/services/inventory.service';
                   <span *ngIf="!item.isLowStock" class="px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-400">OK</span>
                 </td>
               </tr>
-              <tr *ngIf="inventory.length === 0">
+              <tr *ngIf="inventory().length === 0">
                 <td colspan="6" class="px-5 py-8 text-center text-gray-600">No inventory records</td>
               </tr>
             </tbody>
@@ -59,13 +59,19 @@ import { InventoryService } from '../../../core/services/inventory.service';
   `
 })
 export class MfgInventoryComponent implements OnInit {
-    inventory: any[] = [];
-    alerts: any[] = [];
+    inventory = signal<any[]>([]);
+    alerts = signal<any[]>([]);
 
     constructor(private invService: InventoryService) { }
 
     ngOnInit() {
-        this.invService.getAll().subscribe({ next: d => this.inventory = d || [], error: () => { } });
-        this.invService.getAlerts().subscribe({ next: d => this.alerts = d || [], error: () => { } });
+        this.invService.getAll().subscribe({
+            next: d => this.inventory.set(d || []),
+            error: () => { }
+        });
+        this.invService.getAlerts().subscribe({
+            next: d => this.alerts.set(d || []),
+            error: () => { }
+        });
     }
 }

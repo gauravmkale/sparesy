@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RequestService } from '../../../core/services/request.service';
@@ -26,10 +26,10 @@ import { RequestService } from '../../../core/services/request.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of requests" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+              <tr *ngFor="let r of requests()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ r.id }}</td>
-                <td class="px-5 py-3 text-white">{{ r.projectName }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ r.componentName }}</td>
+                <td class="px-5 py-3 text-white">{{ r.project?.name }}</td>
+                <td class="px-5 py-3 text-gray-400">{{ r.component?.name }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ r.quantityNeeded }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
@@ -47,7 +47,7 @@ import { RequestService } from '../../../core/services/request.service';
                   <span *ngIf="r.status === 'REJECTED'" class="text-red-400 text-xs">✗ Rejected</span>
                 </td>
               </tr>
-              <tr *ngIf="requests.length === 0">
+              <tr *ngIf="requests().length === 0">
                 <td colspan="6" class="px-5 py-8 text-center text-gray-600">No incoming requests</td>
               </tr>
             </tbody>
@@ -56,10 +56,10 @@ import { RequestService } from '../../../core/services/request.service';
       </div>
 
       <!-- Quote Modal -->
-      <div *ngIf="quotingRequest" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="quotingRequest = null">
+      <div *ngIf="quotingRequest()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="quotingRequest.set(null)">
         <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
           <h3 class="text-lg font-semibold text-white">Submit Quote</h3>
-          <p class="text-gray-500 text-sm">For: {{ quotingRequest.componentName }} — {{ quotingRequest.quantityNeeded }} units</p>
+          <p class="text-gray-500 text-sm">For: {{ quotingRequest().component?.name }} — {{ quotingRequest().quantityNeeded }} units</p>
           <div class="space-y-3">
             <div>
               <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Quoted Price (₹)</label>
@@ -73,7 +73,7 @@ import { RequestService } from '../../../core/services/request.service';
             </div>
           </div>
           <div class="flex justify-end gap-3 mt-4">
-            <button (click)="quotingRequest = null" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+            <button (click)="quotingRequest.set(null)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
             <button (click)="submitQuote()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition">Submit Quote</button>
           </div>
         </div>
@@ -82,24 +82,29 @@ import { RequestService } from '../../../core/services/request.service';
   `
 })
 export class SupRequestsComponent implements OnInit {
-    requests: any[] = [];
-    quotingRequest: any = null;
+    requests = signal<any[]>([]);
+    quotingRequest = signal<any>(null);
     quoteData: any = { quotedPrice: 0, deliveryDays: 7 };
 
     constructor(private reqService: RequestService) { }
 
     ngOnInit() { this.load(); }
 
-    load() { this.reqService.getMyRequests().subscribe({ next: d => this.requests = d || [], error: () => { } }); }
+    load() {
+        this.reqService.getMyRequests().subscribe({
+            next: d => this.requests.set(d || []),
+            error: () => { }
+        });
+    }
 
     openQuoteModal(r: any) {
-        this.quotingRequest = r;
+        this.quotingRequest.set(r);
         this.quoteData = { quotedPrice: 0, deliveryDays: 7 };
     }
 
     submitQuote() {
-        this.reqService.submitQuote(this.quotingRequest.id, this.quoteData).subscribe({
-            next: () => { this.quotingRequest = null; this.load(); },
+        this.reqService.submitQuote(this.quotingRequest().id, this.quoteData).subscribe({
+            next: () => { this.quotingRequest.set(null); this.load(); },
             error: (e: any) => alert(e.error?.message || 'Error submitting quote')
         });
     }

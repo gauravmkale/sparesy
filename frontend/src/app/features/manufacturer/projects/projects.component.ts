@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
@@ -17,7 +17,7 @@ import { ComponentService } from '../../../core/services/component.service';
       <p class="text-gray-500 text-sm mb-6">Manage all client projects and sourcing workflow</p>
 
       <!-- Project List -->
-      <div *ngIf="!selectedProject" class="bg-[#141414] border border-gray-800/60 rounded-xl">
+      <div *ngIf="!selectedProject()" class="bg-[#141414] border border-gray-800/60 rounded-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -32,10 +32,10 @@ import { ComponentService } from '../../../core/services/component.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let p of projects" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition cursor-pointer" (click)="selectProject(p)">
+              <tr *ngFor="let p of projects()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition cursor-pointer" (click)="selectProject(p)">
                 <td class="px-5 py-3 text-gray-500">#{{ p.id }}</td>
                 <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ p.clientName || '—' }}</td>
+                <td class="px-5 py-3 text-gray-400">{{ p.client?.name || '—' }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ p.quantity }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span>
@@ -55,7 +55,7 @@ import { ComponentService } from '../../../core/services/component.service';
                   </select>
                 </td>
               </tr>
-              <tr *ngIf="projects.length === 0">
+              <tr *ngIf="projects().length === 0">
                 <td colspan="7" class="px-5 py-8 text-center text-gray-600">No projects found</td>
               </tr>
             </tbody>
@@ -64,32 +64,32 @@ import { ComponentService } from '../../../core/services/component.service';
       </div>
 
       <!-- Project Detail -->
-      <div *ngIf="selectedProject">
-        <button (click)="selectedProject = null" class="text-gray-500 hover:text-white text-sm mb-4 flex items-center gap-1 transition">
+      <div *ngIf="selectedProject()">
+        <button (click)="selectedProject.set(null)" class="text-gray-500 hover:text-white text-sm mb-4 flex items-center gap-1 transition">
           ← Back to projects
         </button>
 
         <div class="grid grid-cols-3 gap-4 mb-6">
           <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 col-span-2">
-            <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject.name }}</h3>
+            <h3 class="text-lg font-semibold text-white mb-3">{{ selectedProject().name }}</h3>
             <div class="grid grid-cols-2 gap-3 text-sm">
-              <div><span class="text-gray-500">Client:</span> <span class="text-gray-300 ml-2">{{ selectedProject.clientName }}</span></div>
-              <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject.quantity }}</span></div>
-              <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject.layerCount }}</span></div>
-              <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject.boardThickness }}mm</span></div>
-              <div><span class="text-gray-500">Surface Finish:</span> <span class="text-gray-300 ml-2">{{ selectedProject.surfaceFinish }}</span></div>
+              <div><span class="text-gray-500">Client:</span> <span class="text-gray-300 ml-2">{{ selectedProject().client?.name }}</span></div>
+              <div><span class="text-gray-500">Quantity:</span> <span class="text-gray-300 ml-2">{{ selectedProject().quantity }}</span></div>
+              <div><span class="text-gray-500">Layers:</span> <span class="text-gray-300 ml-2">{{ selectedProject().layerCount }}</span></div>
+              <div><span class="text-gray-500">Thickness:</span> <span class="text-gray-300 ml-2">{{ selectedProject().boardThickness }}mm</span></div>
+              <div><span class="text-gray-500">Surface Finish:</span> <span class="text-gray-300 ml-2">{{ selectedProject().surfaceFinish }}</span></div>
               <div><span class="text-gray-500">Status:</span>
-                <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject.status)">{{ selectedProject.status }}</span>
+                <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getStatusClass(selectedProject().status)">{{ selectedProject().status }}</span>
               </div>
             </div>
           </div>
           <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
             <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h4>
             <div class="space-y-2">
-              <button (click)="showSendRequest = true" class="w-full text-left px-3 py-2 rounded-lg bg-teal-500/10 text-teal-400 text-sm hover:bg-teal-500/20 transition">
+              <button (click)="showSendRequest.set(true)" class="w-full text-left px-3 py-2 rounded-lg bg-teal-500/10 text-teal-400 text-sm hover:bg-teal-500/20 transition">
                 Send Sourcing Request
               </button>
-              <button (click)="showCreateQuote = true" class="w-full text-left px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm hover:bg-blue-500/20 transition">
+              <button (click)="showCreateQuote.set(true)" class="w-full text-left px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm hover:bg-blue-500/20 transition">
                 Create Client Quote
               </button>
             </div>
@@ -114,9 +114,9 @@ import { ComponentService } from '../../../core/services/component.service';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let r of requests" class="border-t border-gray-800/40">
-                  <td class="px-5 py-3 text-white">{{ r.componentName }}</td>
-                  <td class="px-5 py-3 text-gray-400">{{ r.supplierName }}</td>
+                <tr *ngFor="let r of requests()" class="border-t border-gray-800/40">
+                  <td class="px-5 py-3 text-white">{{ r.component?.name }}</td>
+                  <td class="px-5 py-3 text-gray-400">{{ r.supplier?.name }}</td>
                   <td class="px-5 py-3 text-gray-400">{{ r.quantityNeeded }}</td>
                   <td class="px-5 py-3 text-gray-300">{{ r.quotedPrice ? '₹' + r.quotedPrice : '—' }}</td>
                   <td class="px-5 py-3">
@@ -129,7 +129,7 @@ import { ComponentService } from '../../../core/services/component.service';
                       class="text-xs px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition">Reject</button>
                   </td>
                 </tr>
-                <tr *ngIf="requests.length === 0">
+                <tr *ngIf="requests().length === 0">
                   <td colspan="6" class="px-5 py-6 text-center text-gray-600">No sourcing requests</td>
                 </tr>
               </tbody>
@@ -138,7 +138,7 @@ import { ComponentService } from '../../../core/services/component.service';
         </div>
 
         <!-- Send Request Modal -->
-        <div *ngIf="showSendRequest" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showSendRequest = false">
+        <div *ngIf="showSendRequest()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showSendRequest.set(false)">
           <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
             <h3 class="text-lg font-semibold text-white">Send Sourcing Request</h3>
             <div class="space-y-3">
@@ -146,14 +146,14 @@ import { ComponentService } from '../../../core/services/component.service';
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Supplier</label>
                 <select [(ngModel)]="newRequest.supplierCompanyId" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1">
                   <option [ngValue]="null" disabled>Select supplier</option>
-                  <option *ngFor="let s of suppliers" [ngValue]="s.id">{{ s.name }}</option>
+                  <option *ngFor="let s of suppliers()" [ngValue]="s.id">{{ s.name }}</option>
                 </select>
               </div>
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Component</label>
                 <select [(ngModel)]="newRequest.componentId" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1">
                   <option [ngValue]="null" disabled>Select component</option>
-                  <option *ngFor="let c of components" [ngValue]="c.id">{{ c.name }} ({{ c.partNumber }})</option>
+                  <option *ngFor="let c of components()" [ngValue]="c.id">{{ c.name }} ({{ c.partNumber }})</option>
                 </select>
               </div>
               <div>
@@ -163,14 +163,14 @@ import { ComponentService } from '../../../core/services/component.service';
               </div>
             </div>
             <div class="flex justify-end gap-3 mt-4">
-              <button (click)="showSendRequest = false" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+              <button (click)="showSendRequest.set(false)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
               <button (click)="sendRequest()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">Send</button>
             </div>
           </div>
         </div>
 
         <!-- Create Quote Modal -->
-        <div *ngIf="showCreateQuote" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showCreateQuote = false">
+        <div *ngIf="showCreateQuote()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showCreateQuote.set(false)">
           <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
             <h3 class="text-lg font-semibold text-white">Create Client Quote</h3>
             <div class="space-y-3">
@@ -191,7 +191,7 @@ import { ComponentService } from '../../../core/services/component.service';
               </div>
             </div>
             <div class="flex justify-end gap-3 mt-4">
-              <button (click)="showCreateQuote = false" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+              <button (click)="showCreateQuote.set(false)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
               <button (click)="createQuote()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition">Create & Send</button>
             </div>
           </div>
@@ -201,13 +201,15 @@ import { ComponentService } from '../../../core/services/component.service';
   `
 })
 export class MfgProjectsComponent implements OnInit {
-    projects: any[] = [];
-    selectedProject: any = null;
-    requests: any[] = [];
-    suppliers: any[] = [];
-    components: any[] = [];
-    showSendRequest = false;
-    showCreateQuote = false;
+    projects = signal<any[]>([]);
+    selectedProject = signal<any>(null);
+    requests = signal<any[]>([]);
+    suppliers = signal<any[]>([]);
+    components = signal<any[]>([]);
+    
+    showSendRequest = signal<boolean>(false);
+    showCreateQuote = signal<boolean>(false);
+    
     newRequest: any = { supplierCompanyId: null, componentId: null, quantityNeeded: 0 };
     newQuote: any = { totalPrice: 0, leadTimeDays: 0, notes: '' };
 
@@ -221,17 +223,29 @@ export class MfgProjectsComponent implements OnInit {
 
     ngOnInit() {
         this.loadProjects();
-        this.companyService.getSuppliers().subscribe({ next: d => this.suppliers = d || [], error: () => { } });
-        this.componentService.getAll().subscribe({ next: d => this.components = d || [], error: () => { } });
+        this.companyService.getSuppliers().subscribe({
+            next: d => this.suppliers.set(d || []),
+            error: () => { }
+        });
+        this.componentService.getAll().subscribe({
+            next: d => this.components.set(d || []),
+            error: () => { }
+        });
     }
 
     loadProjects() {
-        this.projectService.getAllProjects().subscribe({ next: d => this.projects = d || [], error: () => { } });
+        this.projectService.getAllProjects().subscribe({
+            next: d => this.projects.set(d || []),
+            error: () => { }
+        });
     }
 
     selectProject(p: any) {
-        this.selectedProject = p;
-        this.requestService.getByProject(p.id).subscribe({ next: d => this.requests = d || [], error: () => { } });
+        this.selectedProject.set(p);
+        this.requestService.getByProject(p.id).subscribe({
+            next: d => this.requests.set(d || []),
+            error: () => { }
+        });
     }
 
     updateStatus(id: number, event: any) {
@@ -241,34 +255,34 @@ export class MfgProjectsComponent implements OnInit {
     }
 
     sendRequest() {
-        const data = { ...this.newRequest, projectId: this.selectedProject.id };
+        const data = { ...this.newRequest, projectId: this.selectedProject().id };
         this.requestService.sendRequest(data).subscribe({
-            next: () => { this.showSendRequest = false; this.selectProject(this.selectedProject); },
+            next: () => { this.showSendRequest.set(false); this.selectProject(this.selectedProject()); },
             error: (e: any) => alert(e.error?.message || 'Error sending request')
         });
     }
 
     approveRequest(id: number) {
         this.requestService.approve(id).subscribe({
-            next: () => this.selectProject(this.selectedProject),
+            next: () => this.selectProject(this.selectedProject()),
             error: (e: any) => alert(e.error?.message || 'Error')
         });
     }
 
     rejectRequest(id: number) {
         this.requestService.reject(id).subscribe({
-            next: () => this.selectProject(this.selectedProject),
+            next: () => this.selectProject(this.selectedProject()),
             error: (e: any) => alert(e.error?.message || 'Error')
         });
     }
 
     createQuote() {
-        const data = { ...this.newQuote, projectId: this.selectedProject.id, lineItemsJson: '[]' };
+        const data = { ...this.newQuote, projectId: this.selectedProject().id, lineItemsJson: '[]' };
         this.quoteService.createQuote(data).subscribe({
             next: (q: any) => {
                 this.quoteService.send(q.id).subscribe({
-                    next: () => { this.showCreateQuote = false; alert('Quote created and sent to client!'); },
-                    error: () => { this.showCreateQuote = false; alert('Quote created but failed to send'); }
+                    next: () => { this.showCreateQuote.set(false); alert('Quote created and sent to client!'); },
+                    error: () => { this.showCreateQuote.set(false); alert('Quote created but failed to send'); }
                 });
             },
             error: (e: any) => alert(e.error?.message || 'Error creating quote')
