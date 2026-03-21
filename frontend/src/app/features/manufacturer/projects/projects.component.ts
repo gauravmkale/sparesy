@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
@@ -6,7 +6,10 @@ import { RequestService } from '../../../core/services/request.service';
 import { QuoteService } from '../../../core/services/quote.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { ComponentService } from '../../../core/services/component.service';
+import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
     selector: 'app-mfg-projects',
@@ -88,7 +91,7 @@ import { NotificationService } from '../../../core/services/notification.service
           <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
             <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h4>
             <div class="space-y-2">
-              <button (click)="showSendRequest.set(true)" class="w-full text-left px-3 py-2 rounded-lg bg-teal-500/10 text-teal-400 text-sm hover:bg-teal-500/20 transition">
+              <button (click)="openSendRequest()" class="w-full text-left px-3 py-2 rounded-lg bg-teal-500/10 text-teal-400 text-sm hover:bg-teal-500/20 transition">
                 Send Sourcing Request
               </button>
               <button (click)="openCreateQuote()" class="w-full text-left px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm hover:bg-blue-500/20 transition">
@@ -109,7 +112,8 @@ import { NotificationService } from '../../../core/services/notification.service
                 <tr class="text-gray-500 text-xs uppercase tracking-wider">
                   <th class="text-left px-5 py-3 font-medium">Component</th>
                   <th class="text-left px-5 py-3 font-medium">Supplier</th>
-                  <th class="text-left px-5 py-3 font-medium">Qty Needed</th>
+                  <th class="text-left px-5 py-3 font-medium">Qty</th>
+                  <th class="text-left px-5 py-3 font-medium">Target Price</th>
                   <th class="text-left px-5 py-3 font-medium">Quoted Price</th>
                   <th class="text-left px-5 py-3 font-medium">Status</th>
                   <th class="text-left px-5 py-3 font-medium">Actions</th>
@@ -117,10 +121,16 @@ import { NotificationService } from '../../../core/services/notification.service
               </thead>
               <tbody>
                 <tr *ngFor="let r of requests()" class="border-t border-gray-800/40">
-                  <td class="px-5 py-3 text-white">{{ r.component?.name }}</td>
+                  <td class="px-5 py-3">
+                    <div class="flex flex-col">
+                        <span class="text-white">{{ r.component?.name }}</span>
+                        <span class="text-[10px] text-gray-500 font-mono">{{ r.component?.partNumber }}</span>
+                    </div>
+                  </td>
                   <td class="px-5 py-3 text-gray-400">{{ r.supplier?.name }}</td>
                   <td class="px-5 py-3 text-gray-400">{{ r.quantityNeeded }}</td>
-                  <td class="px-5 py-3 text-gray-300">{{ r.quotedPrice ? '₹' + r.quotedPrice : '—' }}</td>
+                  <td class="px-5 py-3 text-gray-500">{{ r.targetPrice ? '₹' + r.targetPrice : '—' }}</td>
+                  <td class="px-5 py-3 text-gray-300 font-medium">{{ r.quotedPrice ? '₹' + r.quotedPrice : '—' }}</td>
                   <td class="px-5 py-3">
                     <span class="px-2 py-0.5 rounded-md text-xs font-semibold" [ngClass]="getRequestStatusClass(r.status)">{{ r.status }}</span>
                   </td>
@@ -132,7 +142,7 @@ import { NotificationService } from '../../../core/services/notification.service
                   </td>
                 </tr>
                 <tr *ngIf="requests().length === 0">
-                  <td colspan="6" class="px-5 py-6 text-center text-gray-600">No sourcing requests</td>
+                  <td colspan="7" class="px-5 py-6 text-center text-gray-600">No sourcing requests</td>
                 </tr>
               </tbody>
             </table>
@@ -142,33 +152,70 @@ import { NotificationService } from '../../../core/services/notification.service
         <!-- Send Request Modal -->
         <div *ngIf="showSendRequest()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showSendRequest.set(false)">
           <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
-            <h3 class="text-lg font-semibold text-white">Send Sourcing Request</h3>
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white">Sourcing Request</h3>
+                <div class="flex bg-[#1a1a1a] rounded-lg p-1">
+                    <button (click)="sourcingMode.set('SINGLE')" class="px-3 py-1 rounded-md text-xs transition" [ngClass]="sourcingMode() === 'SINGLE' ? 'bg-teal-500 text-white' : 'text-gray-500'">Single</button>
+                    <button (click)="sourcingMode.set('BULK')" class="px-3 py-1 rounded-md text-xs transition" [ngClass]="sourcingMode() === 'BULK' ? 'bg-teal-500 text-white' : 'text-gray-500'">Send to All</button>
+                </div>
+            </div>
+
             <div class="space-y-3">
-              <div>
+              <div *ngIf="sourcingMode() === 'SINGLE'">
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Supplier</label>
-                <select [(ngModel)]="newRequest.supplierCompanyId" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1">
+                <select [(ngModel)]="newRequest.supplierCompanyId" (change)="onSupplierChange()" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1">
                   <option [ngValue]="null" disabled>Select supplier</option>
                   <option *ngFor="let s of suppliers()" [ngValue]="s.id">{{ s.name }}</option>
                 </select>
               </div>
+
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Component</label>
                 <select [(ngModel)]="newRequest.componentId" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1">
-                  <option [ngValue]="null" disabled>Select component</option>
-                  <option *ngFor="let c of components()" [ngValue]="c.id">{{ c.name }} ({{ c.partNumber }})</option>
+                  <option [ngValue]="null" disabled>{{ sourcingMode() === 'SINGLE' && !newRequest.supplierCompanyId ? 'Select supplier first' : 'Select component' }}</option>
+                  <option *ngFor="let c of filteredComponents()" [ngValue]="c.id">{{ c.name }} ({{ c.partNumber }})</option>
                 </select>
+                <p *ngIf="sourcingMode() === 'BULK'" class="text-[10px] text-gray-500 mt-1 italic">Sends request to all suppliers who carry this component.</p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Quantity Needed</label>
+                    <input type="number" [(ngModel)]="newRequest.quantityNeeded"
+                    class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Target Price (Optional)</label>
+                    <input type="number" [(ngModel)]="newRequest.targetPrice"
+                    class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                </div>
               </div>
               <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Quantity Needed</label>
-                <input type="number" [(ngModel)]="newRequest.quantityNeeded"
+                <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Target Delivery (Optional)</label>
+                <input type="date" [(ngModel)]="targetDeliveryDate"
                   class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
               </div>
             </div>
-            <div class="flex justify-end gap-3 mt-4">
+
+            <!-- Confirmation Section -->
+            <div *ngIf="showConfirmRequest()" class="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 mt-4">
+                <p class="text-xs text-teal-400 font-medium">Ready to send?</p>
+                <p class="text-[11px] text-gray-400 mt-1">
+                    {{ sourcingMode() === 'BULK' ? 'Requests will be sent to all matching suppliers.' : 'Request will be sent to the selected supplier.' }}
+                </p>
+                <div class="flex justify-end gap-2 mt-3">
+                    <button (click)="showConfirmRequest.set(false)" class="text-xs text-gray-500 hover:text-white transition">Back</button>
+                    <button (click)="executeSendRequest()" [disabled]="isLoading()" class="px-3 py-1.5 bg-teal-500 text-white rounded-lg text-xs font-bold hover:bg-teal-400 transition flex items-center gap-2">
+                        <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        {{ isLoading() ? 'Processing...' : 'Confirm & Send' }}
+                    </button>
+                </div>
+            </div>
+
+            <div *ngIf="!showConfirmRequest()" class="flex justify-end gap-3 mt-4">
               <button (click)="showSendRequest.set(false)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
-              <button (click)="sendRequest()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition flex items-center gap-2">
-                <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                {{ isLoading() ? 'Sending...' : 'Send' }}
+              <button (click)="showConfirmRequest.set(true)" [disabled]="!newRequest.componentId || !newRequest.quantityNeeded" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">
+                Send Request
               </button>
             </div>
           </div>
@@ -229,33 +276,44 @@ export class MfgProjectsComponent implements OnInit {
     selectedProject = signal<any>(null);
     requests = signal<any[]>([]);
     suppliers = signal<any[]>([]);
-    components = signal<any[]>([]);
+    allComponents = signal<any[]>([]);
+    supplierSpecificComponents = signal<any[]>([]);
     isLoading = signal<boolean>(false);
     
     showSendRequest = signal<boolean>(false);
+    showConfirmRequest = signal<boolean>(false);
     showCreateQuote = signal<boolean>(false);
+    sourcingMode = signal<'SINGLE' | 'BULK'>('SINGLE');
     
-    newRequest: any = { supplierCompanyId: null, componentId: null, quantityNeeded: 0 };
+    newRequest: any = { supplierCompanyId: null, componentId: null, quantityNeeded: 0, targetPrice: null };
+    targetDeliveryDate = '';
     newQuote: any = { totalPrice: 0, leadTimeDays: 0, notes: '' };
     
     profitMargin = 20;
     baseCost = signal<number>(0);
+
+    filteredComponents = computed(() => {
+        if (this.sourcingMode() === 'BULK') return this.allComponents();
+        if (this.newRequest.supplierCompanyId) return this.supplierSpecificComponents();
+        return [];
+    });
 
     private projectService = inject(ProjectService);
     private requestService = inject(RequestService);
     private quoteService = inject(QuoteService);
     private companyService = inject(CompanyService);
     private componentService = inject(ComponentService);
+    private supplierCompService = inject(SupplierComponentService);
     private notif = inject(NotificationService);
 
     ngOnInit() {
         this.loadProjects();
-        this.companyService.getSuppliers().subscribe({
-            next: d => this.suppliers.set(d || []),
+        this.companyService.getApprovedSuppliers().subscribe({
+            next: (d: any[]) => this.suppliers.set(d || []),
             error: () => { }
         });
         this.componentService.getAll().subscribe({
-            next: d => this.components.set(d || []),
+            next: (d: any[]) => this.allComponents.set(d || []),
             error: () => { }
         });
     }
@@ -263,7 +321,10 @@ export class MfgProjectsComponent implements OnInit {
     loadProjects() {
         this.isLoading.set(true);
         this.projectService.getAllProjects().subscribe({
-            next: d => { this.projects.set(d || []); this.isLoading.set(false); },
+            next: (d: any[]) => { 
+                this.projects.set((d || []).sort((a, b) => b.id - a.id)); 
+                this.isLoading.set(false); 
+            },
             error: () => this.isLoading.set(false)
         });
     }
@@ -272,7 +333,7 @@ export class MfgProjectsComponent implements OnInit {
         this.selectedProject.set(p);
         this.isLoading.set(true);
         this.requestService.getByProject(p.id).subscribe({
-            next: d => { 
+            next: (d: any[]) => { 
                 this.requests.set(d || []); 
                 this.isLoading.set(false); 
                 this.calculateBaseCost();
@@ -286,6 +347,64 @@ export class MfgProjectsComponent implements OnInit {
             .filter(r => r.status === 'APPROVED')
             .reduce((sum, r) => sum + (r.quotedPrice || 0), 0);
         this.baseCost.set(total);
+    }
+
+    openSendRequest() {
+        this.sourcingMode.set('SINGLE');
+        this.showConfirmRequest.set(false);
+        this.showSendRequest.set(true);
+    }
+
+    onSupplierChange() {
+        if (this.newRequest.supplierCompanyId) {
+            this.supplierCompService.getSupplierCatalog(this.newRequest.supplierCompanyId).subscribe({
+                next: (scs: any[]) => {
+                    this.supplierSpecificComponents.set(scs.map(sc => sc.component));
+                }
+            });
+        } else {
+            this.supplierSpecificComponents.set([]);
+        }
+    }
+
+    executeSendRequest() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
+
+        const baseData = {
+            projectId: this.selectedProject().id,
+            componentId: this.newRequest.componentId,
+            quantityNeeded: this.newRequest.quantityNeeded,
+            targetPrice: this.newRequest.targetPrice,
+            targetDelivery: this.targetDeliveryDate ? this.targetDeliveryDate + 'T00:00:00' : null
+        };
+
+        if (this.sourcingMode() === 'SINGLE') {
+            this.requestService.sendRequest({ ...baseData, supplierCompanyId: this.newRequest.supplierCompanyId }).subscribe({
+                next: () => this.onSourcingSuccess(),
+                error: (e: any) => this.onSourcingError(e)
+            });
+        } else {
+            this.requestService.sendBulkRequest(baseData).subscribe({
+                next: () => this.onSourcingSuccess(),
+                error: (e: any) => this.onSourcingError(e)
+            });
+        }
+    }
+
+    onSourcingSuccess() {
+        this.isLoading.set(false);
+        this.showSendRequest.set(false);
+        this.showConfirmRequest.set(false);
+        this.notif.success('Sourcing requests sent successfully!');
+        this.selectProject(this.selectedProject());
+        this.newRequest = { supplierCompanyId: null, componentId: null, quantityNeeded: 0, targetPrice: null };
+        this.targetDeliveryDate = '';
+    }
+
+    onSourcingError(e: any) {
+        this.isLoading.set(false);
+        this.notif.error(e.error?.message || 'Error sending request');
     }
 
     openCreateQuote() {
@@ -304,24 +423,6 @@ export class MfgProjectsComponent implements OnInit {
         this.projectService.updateStatus(id, event.target.value).subscribe({
             next: () => this.loadProjects(), 
             error: (e: any) => this.notif.error(e.error?.message || 'Error updating status')
-        });
-    }
-
-    sendRequest() {
-        if (this.isLoading()) return;
-        this.isLoading.set(true);
-        const data = { ...this.newRequest, projectId: this.selectedProject().id };
-        this.requestService.sendRequest(data).subscribe({
-            next: () => { 
-                this.isLoading.set(false);
-                this.showSendRequest.set(false); 
-                this.notif.success('Sourcing request sent!');
-                this.selectProject(this.selectedProject()); 
-            },
-            error: (e: any) => {
-              this.isLoading.set(false);
-              this.notif.error(e.error?.message || 'Error sending request');
-            }
         });
     }
 

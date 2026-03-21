@@ -34,6 +34,12 @@ public class RequestController {
                 .body(requestService.sendRequest(dto));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<Void> sendBulkRequest(@Valid @RequestBody RequestRequestDTO dto) {
+        requestService.sendBulkRequest(dto);
+        return ResponseEntity.ok().build();
+    }
+
     // GET /api/requests/project/{projectId}
     // Manufacturer views all requests sent for a specific project
     @GetMapping("/project/{projectId}")

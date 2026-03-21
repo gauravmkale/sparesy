@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 // Sent by manufacturer when creating a component request to a supplier
 // The manufacturer picks which supplier, which component, and how many they need
@@ -23,4 +25,8 @@ public class RequestRequestDTO {
     @NotNull(message = "Quantity needed is required")
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantityNeeded;
+
+    private BigDecimal targetPrice;
+    
+    private LocalDateTime targetDelivery;
 }

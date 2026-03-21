@@ -1,14 +1,16 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { ComponentService } from '../../../core/services/component.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
     selector: 'app-sup-catalog',
     standalone: true,
     imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -20,6 +22,11 @@ import { NotificationService } from '../../../core/services/notification.service
           class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition">
           {{ showAddForm() ? 'Cancel' : '+ Add to Catalog' }}
         </button>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isInitialLoading()" class="flex justify-center py-12">
+        <div class="h-8 w-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
 
       <!-- Add Form -->
@@ -47,12 +54,15 @@ import { NotificationService } from '../../../core/services/notification.service
           </div>
         </div>
         <div class="flex justify-end mt-4">
-          <button (click)="addToCatalog()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition">Add to Catalog</button>
+          <button (click)="addToCatalog()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition flex items-center gap-2">
+            <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            {{ isLoading() ? 'Adding...' : 'Add to Catalog' }}
+          </button>
         </div>
       </div>
 
       <!-- Catalog Table -->
-      <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
+      <div *ngIf="!isInitialLoading()" class="bg-[#141414] border border-gray-800/60 rounded-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -66,7 +76,12 @@ import { NotificationService } from '../../../core/services/notification.service
             </thead>
             <tbody>
               <tr *ngFor="let sc of catalog()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
-                <td class="px-5 py-3 text-white font-medium">{{ sc.component?.name || 'Unknown Component' }}</td>
+                <td class="px-5 py-3 text-white font-medium">
+                    <div class="flex flex-col">
+                        <span>{{ sc.component?.name || 'Unknown' }}</span>
+                        <span class="text-[10px] text-gray-500 font-mono">{{ sc.component?.partNumber }}</span>
+                    </div>
+                </td>
                 <td class="px-5 py-3">
                   <div *ngIf="editingId() !== sc.id" class="text-gray-300">₹{{ sc.unitPrice }}</div>
                   <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editPrice"
@@ -79,11 +94,14 @@ import { NotificationService } from '../../../core/services/notification.service
                 </td>
                 <td class="px-5 py-3 text-gray-400">{{ sc.leadTimeDays }} days</td>
                 <td class="px-5 py-3">
-                  <div *ngIf="editingId() !== sc.id">
-                    <button (click)="startEdit(sc)" class="text-xs px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition">Edit</button>
+                  <div *ngIf="editingId() !== sc.id" class="flex gap-2">
+                    <button (click)="startEdit(sc)" class="text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">Edit</button>
+                    <button (click)="confirmDelete(sc)" class="text-xs px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Delete</button>
                   </div>
                   <div *ngIf="editingId() === sc.id" class="flex gap-2">
-                    <button (click)="saveEdit(sc.id)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition">Save</button>
+                    <button (click)="saveEdit(sc.id)" [disabled]="isLoading()" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition">
+                      {{ isLoading() ? '...' : 'Save' }}
+                    </button>
                     <button (click)="editingId.set(null)" class="text-xs px-2.5 py-1 rounded-lg bg-gray-500/15 text-gray-400 hover:bg-gray-500/25 transition">Cancel</button>
                   </div>
                 </td>
@@ -95,6 +113,21 @@ import { NotificationService } from '../../../core/services/notification.service
           </table>
         </div>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div *ngIf="itemToDelete()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="itemToDelete.set(null)">
+        <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-sm space-y-4" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-semibold text-white">Remove Component?</h3>
+          <p class="text-gray-400 text-sm">Are you sure you want to remove <span class="text-white font-medium">{{ itemToDelete().component?.name }}</span> from your catalog?</p>
+          <div class="flex justify-end gap-3 mt-6">
+            <button (click)="itemToDelete.set(null)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+            <button (click)="deleteItem()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-400 transition flex items-center gap-2">
+              <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              {{ isLoading() ? 'Removing...' : 'Remove' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 })
@@ -103,7 +136,9 @@ export class SupCatalogComponent implements OnInit {
     masterComponents = signal<any[]>([]);
     showAddForm = signal<boolean>(false);
     editingId = signal<number | null>(null);
+    isInitialLoading = signal<boolean>(true);
     isLoading = signal<boolean>(false);
+    itemToDelete = signal<any>(null);
     
     editPrice = 0;
     editStock = 0;
@@ -114,34 +149,47 @@ export class SupCatalogComponent implements OnInit {
     private notif = inject(NotificationService);
 
     ngOnInit() {
-        this.load();
-        this.compService.getAll().subscribe({
-            next: d => this.masterComponents.set(d || []),
-            error: () => { }
+        forkJoin({
+            catalog: this.supCompService.getMyCatalog(),
+            master: this.compService.getAll()
+        }).subscribe({
+            next: (data) => {
+                this.catalog.set(data.catalog || []);
+                this.masterComponents.set(data.master || []);
+                this.isInitialLoading.set(false);
+            },
+            error: () => {
+                this.isInitialLoading.set(false);
+                this.notif.error('Failed to load catalog data');
+            }
         });
     }
 
     load() {
         this.supCompService.getMyCatalog().subscribe({
             next: d => this.catalog.set(d || []),
-            error: () => { }
+            error: () => this.notif.error('Failed to reload catalog')
         });
     }
 
     addToCatalog() {
+        if (!this.newItem.componentId) {
+            this.notif.error('Please select a component');
+            return;
+        }
         if (this.isLoading()) return;
         this.isLoading.set(true);
         this.supCompService.addToCatalog(this.newItem).subscribe({
             next: () => { 
                 this.isLoading.set(false);
                 this.showAddForm.set(false); 
-                this.notif.success('Component added to your catalog');
+                this.notif.success('Catalog updated');
                 this.newItem = { componentId: null, unitPrice: 0, stockQuantity: 0, leadTimeDays: 7 }; 
                 this.load(); 
             },
             error: (e: any) => {
                 this.isLoading.set(false);
-                this.notif.error(e.error?.message || 'Error adding to catalog');
+                this.notif.error(e.error?.message || 'Error updating catalog');
             }
         });
     }
@@ -155,6 +203,8 @@ export class SupCatalogComponent implements OnInit {
     saveEdit(id: number) {
         if (this.isLoading()) return;
         this.isLoading.set(true);
+        
+        // Nested updates for price and stock
         this.supCompService.updatePrice(id, this.editPrice).subscribe({
             next: () => {
                 this.supCompService.updateStock(id, this.editStock).subscribe({
@@ -164,16 +214,36 @@ export class SupCatalogComponent implements OnInit {
                         this.notif.success('Catalog item updated');
                         this.load(); 
                     },
-                    error: () => { 
+                    error: (e: any) => { 
                         this.isLoading.set(false);
-                        this.editingId.set(null); 
-                        this.load(); 
+                        this.notif.error(e.error?.message || 'Failed to update stock');
                     }
                 });
             },
             error: (e: any) => {
                 this.isLoading.set(false);
-                this.notif.error(e.error?.message || 'Error updating item');
+                this.notif.error(e.error?.message || 'Failed to update price');
+            }
+        });
+    }
+
+    confirmDelete(sc: any) {
+        this.itemToDelete.set(sc);
+    }
+
+    deleteItem() {
+        if (this.isLoading() || !this.itemToDelete()) return;
+        this.isLoading.set(true);
+        this.supCompService.deleteFromCatalog(this.itemToDelete().id).subscribe({
+            next: () => {
+                this.isLoading.set(false);
+                this.notif.success('Item removed from catalog');
+                this.itemToDelete.set(null);
+                this.load();
+            },
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error removing item');
             }
         });
     }

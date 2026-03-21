@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompanyService } from '../../../core/services/company.service';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -7,6 +7,7 @@ import { NotificationService } from '../../../core/services/notification.service
     selector: 'app-mfg-onboarding',
     standalone: true,
     imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -48,11 +49,13 @@ import { NotificationService } from '../../../core/services/notification.service
                 <td class="px-5 py-3">
                   <div class="flex gap-2">
                     <button (click)="approve(c.id)" [disabled]="isLoading()"
-                      class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition font-medium">
+                      class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition font-medium flex items-center gap-2">
+                      <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin"></span>
                       {{ isLoading() ? '...' : 'Approve' }}
                     </button>
                     <button (click)="reject(c.id)" [disabled]="isLoading()"
-                      class="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-50 transition font-medium">
+                      class="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-50 transition font-medium flex items-center gap-2">
+                      <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin"></span>
                       {{ isLoading() ? '...' : 'Reject' }}
                     </button>
                   </div>
@@ -79,7 +82,7 @@ export class MfgOnboardingComponent implements OnInit {
 
     load() {
         this.companyService.getPending().subscribe({
-            next: d => this.pending.set(d || []),
+            next: (d: any[]) => this.pending.set(d || []),
             error: () => { }
         });
     }

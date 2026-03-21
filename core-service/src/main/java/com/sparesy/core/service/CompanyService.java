@@ -19,32 +19,28 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
 
-    // Constructor injection — no @Autowired needed in modern Spring
     public CompanyService(CompanyRepository companyRepository) {
         this.companyRepository = companyRepository;
     }
 
-    // Returns all companies of type CLIENT — used by manufacturer portal
     public List<Company> getAllClients() {
-        return companyRepository.findByType(CompanyType.CLIENT);
+        return companyRepository.findByTypeAndIsActive(CompanyType.CLIENT, true);
     }
 
     public List<Company> getAllApprovedClients() {
-        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.CLIENT, OnboardingStatus.APPROVED);
+        return companyRepository.findByTypeAndOnboardingStatusAndIsActive(CompanyType.CLIENT, OnboardingStatus.APPROVED, true);
     }
 
-    // Returns all companies of type SUPPLIER — used by manufacturer portal
     public List<Company> getAllSuppliers() {
-        return companyRepository.findByType(CompanyType.SUPPLIER);
+        return companyRepository.findByTypeAndIsActive(CompanyType.SUPPLIER, true);
     }
 
-    //Return only approved supp;liers
     public List<Company> getAllApprovedSuppliers() {
-        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.SUPPLIER, OnboardingStatus.APPROVED);
+        return companyRepository.findByTypeAndOnboardingStatusAndIsActive(CompanyType.SUPPLIER, OnboardingStatus.APPROVED, true);
     }
 
     public List<Company> getPendingCompanies() {
-        return companyRepository.findByOnboardingStatus(OnboardingStatus.PENDING);
+        return companyRepository.findByOnboardingStatusAndIsActive(OnboardingStatus.PENDING, true);
     }
 
     public void approveCompany(Long id) {
@@ -63,7 +59,12 @@ public class CompanyService {
         notificationService.push(company.getId(), "ONBOARDING_REJECTED");
     }
 
-    // Returns a single company by id — used internally by other services
+    public void deleteCompany(Long id) {
+        Company company = getCompanyById(id);
+        company.setIsActive(false);
+        companyRepository.save(company);
+    }
+
     public Company getCompanyById(Long id) {
         return companyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));

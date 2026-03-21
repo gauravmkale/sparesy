@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyService } from '../../../core/services/company.service';
@@ -10,6 +10,7 @@ import { NotificationService } from '../../../core/services/notification.service
     selector: 'app-mfg-suppliers',
     standalone: true,
     imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -55,9 +56,10 @@ import { NotificationService } from '../../../core/services/notification.service
               class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">
               {{ generatedLink() ? 'Done' : 'Cancel' }}
             </button>
-            <button *ngIf="!generatedLink()" (click)="generateInvite()" [disabled]="isGenerating()"
-              class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ isGenerating() ? 'Generating...' : 'Generate Link' }}
+            <button *ngIf="!generatedLink()" (click)="generateInvite()" [disabled]="isLoading()"
+              class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+              <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              {{ isLoading() ? 'Generating...' : 'Generate Link' }}
             </button>
           </div>
         </div>
@@ -67,8 +69,16 @@ import { NotificationService } from '../../../core/services/notification.service
       <div class="grid grid-cols-3 gap-4 mb-6">
         <div *ngFor="let s of suppliers()"
           (click)="selectSupplier(s)"
-          class="bg-[#141414] border rounded-xl p-5 cursor-pointer transition-all duration-150 hover:border-teal-500/50"
+          class="bg-[#141414] border rounded-xl p-5 cursor-pointer transition-all duration-150 hover:border-teal-500/50 relative group"
           [ngClass]="{ 'border-teal-500/50 bg-teal-500/5': selectedSupplier()?.id === s.id, 'border-gray-800/60': selectedSupplier()?.id !== s.id }">
+          
+          <button (click)="confirmDelete($event, s)" 
+            class="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+
           <h3 class="text-white font-semibold">{{ s?.name || 'Untitled Supplier' }}</h3>
           <p class="text-gray-500 text-sm mt-1">{{ s?.email }}</p>
           <p class="text-gray-600 text-xs mt-1">{{ s?.contactPersonName }}</p>
@@ -113,6 +123,21 @@ import { NotificationService } from '../../../core/services/notification.service
           </table>
         </div>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div *ngIf="companyToDelete()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="companyToDelete.set(null)">
+        <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-sm space-y-4" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-semibold text-white">Delete Supplier?</h3>
+          <p class="text-gray-400 text-sm">Are you sure you want to delete <span class="text-white font-medium">{{ companyToDelete().name }}</span>? This action cannot be undone.</p>
+          <div class="flex justify-end gap-3 mt-6">
+            <button (click)="companyToDelete.set(null)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
+            <button (click)="deleteSupplier()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-400 transition flex items-center gap-2">
+              <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              {{ isLoading() ? 'Deleting...' : 'Delete' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 })
@@ -124,7 +149,8 @@ export class MfgSuppliersComponent implements OnInit {
     showInviteModal = signal<boolean>(false);
     generatedLink = signal<string | null>(null);
     copied = signal<boolean>(false);
-    isGenerating = signal<boolean>(false);
+    isLoading = signal<boolean>(false);
+    companyToDelete = signal<any>(null);
     
     inviteEmail = '';
 
@@ -137,31 +163,31 @@ export class MfgSuppliersComponent implements OnInit {
 
     load() {
         this.companyService.getApprovedSuppliers().subscribe({
-            next: d => this.suppliers.set(d || []),
+            next: (d: any[]) => this.suppliers.set(d || []),
             error: () => { }
         });
     }
 
     selectSupplier(s: any) {
         this.selectedSupplier.set(s);
-        this.supplierCompService.getBySupplier(s.id).subscribe({
-            next: d => this.supplierCatalog.set(d || []),
+        this.supplierCompService.getSupplierCatalog(s.id).subscribe({
+            next: (d: any[]) => this.supplierCatalog.set(d || []),
             error: () => this.supplierCatalog.set([])
         });
     }
 
     generateInvite() {
-        if (this.isGenerating()) return;
-        this.isGenerating.set(true);
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
         this.http.post('/api/auth/invite', { email, type: 'SUPPLIER' }, { responseType: 'text' }).subscribe({
             next: (token: string) => {
-                this.isGenerating.set(false);
+                this.isLoading.set(false);
                 this.generatedLink.set(`${window.location.origin}/auth/register?token=${token}`);
                 this.notif.success('Invite link generated successfully');
             },
             error: (e: any) => {
-                this.isGenerating.set(false);
+                this.isLoading.set(false);
                 this.notif.error(e.error?.message || 'Error generating invite');
             }
         });
@@ -182,5 +208,30 @@ export class MfgSuppliersComponent implements OnInit {
         this.inviteEmail = '';
         this.generatedLink.set(null);
         this.copied.set(false);
+    }
+
+    confirmDelete(event: Event, s: any) {
+        event.stopPropagation();
+        this.companyToDelete.set(s);
+    }
+
+    deleteSupplier() {
+        if (this.isLoading() || !this.companyToDelete()) return;
+        this.isLoading.set(true);
+        this.companyService.deleteCompany(this.companyToDelete().id).subscribe({
+            next: () => {
+                this.isLoading.set(false);
+                this.notif.success('Supplier deleted');
+                if (this.selectedSupplier()?.id === this.companyToDelete().id) {
+                    this.selectedSupplier.set(null);
+                }
+                this.companyToDelete.set(null);
+                this.load();
+            },
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error deleting supplier');
+            }
+        });
     }
 }

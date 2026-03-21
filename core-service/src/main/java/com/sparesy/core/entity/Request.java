@@ -47,6 +47,14 @@ public class Request {
     @Column(nullable = false, length = 20)
     private RequestStatus status = RequestStatus.PENDING;
 
+    // Optional: Target price from manufacturer (suggested price)
+    @Column(precision = 10, scale = 2)
+    private BigDecimal targetPrice;
+
+    // Optional: Target delivery date from manufacturer
+    @Column
+    private LocalDateTime targetDelivery;
+
     // Filled in by the supplier when they respond
     @Column(precision = 10, scale = 2)
     private BigDecimal quotedPrice;

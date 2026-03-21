@@ -24,11 +24,16 @@ export class CompanyService {
         return this.http.get<any[]>(`${this.api}/Approvedsuppliers`);
     }
 
+    deleteCompany(id: number): Observable<void> {
+        return this.http.put<void>(`${this.api}/${id}/delete`, {});
+    }
+
     getById(id: number): Observable<any> {
         return this.http.get(`${this.api}/${id}`);
     }
+
     getPending(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.api}/pending`);
+        return this.http.get<any[]>(`${this.api}/pending`);
     }
 
     approve(id: number): Observable<any> {

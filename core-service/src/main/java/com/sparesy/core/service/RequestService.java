@@ -5,11 +5,14 @@ import com.sparesy.core.entity.Component;
 import com.sparesy.core.entity.Company;
 import com.sparesy.core.entity.Project;
 import com.sparesy.core.entity.Request;
+import com.sparesy.core.entity.SupplierComponent;
 import com.sparesy.core.enums.RequestStatus;
 import com.sparesy.core.repository.RequestRepository;
+import com.sparesy.core.repository.SupplierComponentRepository;
 import com.sparesy.core.websocket.NotificationService;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,22 +30,24 @@ public class RequestService {
     private final ComponentService componentService;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationService notificationService;
-
-
+    private final SupplierComponentRepository supplierComponentRepository;
 
     public RequestService(RequestRepository requestRepository,
                       ProjectService projectService,
                       CompanyService companyService,
                       ComponentService componentService,
                       ApplicationEventPublisher eventPublisher,
-                      NotificationService notificationService) {
-    this.requestRepository = requestRepository;
-    this.projectService = projectService;
-    this.companyService = companyService;
-    this.componentService = componentService;
-    this.eventPublisher = eventPublisher;
-    this.notificationService = notificationService;
-}
+                      NotificationService notificationService,
+                      SupplierComponentRepository supplierComponentRepository) {
+        this.requestRepository = requestRepository;
+        this.projectService = projectService;
+        this.companyService = companyService;
+        this.componentService = componentService;
+        this.eventPublisher = eventPublisher;
+        this.notificationService = notificationService;
+        this.supplierComponentRepository = supplierComponentRepository;
+    }
+
     // Manufacturer sends a component request to a supplier for a specific project
     public Request sendRequest(RequestRequestDTO dto) {
         Project project = projectService.getProjectById(dto.getProjectId());
@@ -55,6 +60,8 @@ public class RequestService {
         request.setComponent(component);
         request.setQuantityNeeded(dto.getQuantityNeeded());
         request.setStatus(RequestStatus.PENDING);
+        request.setTargetPrice(dto.getTargetPrice());
+        request.setTargetDelivery(dto.getTargetDelivery());
 
         Request saved = requestRepository.save(request);
 
@@ -66,23 +73,38 @@ public class RequestService {
         return saved;
     }
 
-    // Fetch single request — used internally
+    // New: Send requests to all suppliers who carry this component
+    @Transactional
+    public void sendBulkRequest(RequestRequestDTO dto) {
+        List<SupplierComponent> suppliersWithComp = 
+            supplierComponentRepository.findByComponentIdAndIsActive(dto.getComponentId(), true);
+        
+        for (SupplierComponent sc : suppliersWithComp) {
+            RequestRequestDTO singleDto = new RequestRequestDTO();
+            singleDto.setProjectId(dto.getProjectId());
+            singleDto.setComponentId(dto.getComponentId());
+            singleDto.setQuantityNeeded(dto.getQuantityNeeded());
+            singleDto.setTargetPrice(dto.getTargetPrice());
+            singleDto.setTargetDelivery(dto.getTargetDelivery());
+            singleDto.setSupplierCompanyId(sc.getSupplier().getId());
+            
+            sendRequest(singleDto);
+        }
+    }
+
     public Request getRequestById(Long id) {
         return requestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Request not found with id: " + id));
     }
 
-    // Manufacturer views all requests for a project
     public List<Request> getRequestsByProject(Long projectId) {
         return requestRepository.findByProjectId(projectId);
     }
 
-    // Supplier views all requests sent to them
     public List<Request> getRequestsBySupplier(Long supplierId) {
         return requestRepository.findBySupplierId(supplierId);
     }
 
-    // Supplier submits their quoted price and delivery date
     public Request submitQuote(Long id, BigDecimal price, LocalDateTime delivery) {
         Request request = getRequestById(id);
         request.setQuotedPrice(price);
@@ -92,30 +114,25 @@ public class RequestService {
         return requestRepository.save(request);
     }
 
-    // Manufacturer approves a supplier's quote
     public Request approveRequest(Long id) {
-    Request request = getRequestById(id);
-    request.setStatus(RequestStatus.APPROVED);
-    Request saved = requestRepository.save(request);
+        Request request = getRequestById(id);
+        request.setStatus(RequestStatus.APPROVED);
+        Request saved = requestRepository.save(request);
 
-    // Check if all requests for this project are now approved
-    // If yes — fire event so WorkflowService advances project to QUOTED
-    if (allRequestsApproved(request.getProject().getId())) {
-        eventPublisher.publishEvent(
-                new AllRequestsApprovedEvent(this, request.getProject()));
+        if (allRequestsApproved(request.getProject().getId())) {
+            eventPublisher.publishEvent(
+                    new AllRequestsApprovedEvent(this, request.getProject()));
+        }
+
+        return saved;
     }
 
-    return saved;
-}
-
-    // Manufacturer rejects a supplier's quote
     public Request rejectRequest(Long id) {
         Request request = getRequestById(id);
         request.setStatus(RequestStatus.REJECTED);
         return requestRepository.save(request);
     }
 
-    // Used by WorkflowService — checks if all requests for a project are approved
     public boolean allRequestsApproved(Long projectId) {
         return !requestRepository.existsByProjectIdAndStatusNot(projectId, RequestStatus.APPROVED);
     }

@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
-// Handles supplier-specific component catalog management
-// Suppliers add and update their own listings
-// Manufacturer can view any supplier's active catalog
 @RestController
 @RequestMapping("/api/supplier-components")
 public class SupplierComponentController {
@@ -25,9 +22,6 @@ public class SupplierComponentController {
         this.supplierComponentService = supplierComponentService;
     }
 
-    // POST /api/supplier-components
-    // Supplier adds a component to their catalog with their own pricing
-    // supplierId is extracted from JWT via CompanyContext inside the service
     @PostMapping
     public ResponseEntity<SupplierComponent> addToSupplierCatalog(
             @Valid @RequestBody SupplierComponentRequestDTO dto) {
@@ -35,35 +29,34 @@ public class SupplierComponentController {
                 .body(supplierComponentService.addToSupplierCatalog(dto));
     }
 
-    // GET /api/supplier-components/my
-    // Supplier views their own full catalog including inactive listings
     @GetMapping("/my")
     public ResponseEntity<List<SupplierComponent>> getMyCatalog() {
         Long supplierId = CompanyContext.getCurrentCompanyId();
         return ResponseEntity.ok(supplierComponentService.getBySupplier(supplierId));
     }
 
-    // GET /api/supplier-components/{supplierId}
-    // Manufacturer views a specific supplier's active catalog
     @GetMapping("/{supplierId}")
     public ResponseEntity<List<SupplierComponent>> getSupplierCatalog(
             @PathVariable Long supplierId) {
         return ResponseEntity.ok(supplierComponentService.getActiveBySupplier(supplierId));
     }
 
-    // PUT /api/supplier-components/{id}/stock
-    // Supplier updates their stock quantity for a listing
     @PutMapping("/{id}/stock")
     public ResponseEntity<SupplierComponent> updateStock(@PathVariable Long id,
                                                           @RequestParam Integer quantity) {
         return ResponseEntity.ok(supplierComponentService.updateStock(id, quantity));
     }
 
-    // PUT /api/supplier-components/{id}/price
-    // Supplier updates their unit price for a listing
     @PutMapping("/{id}/price")
     public ResponseEntity<SupplierComponent> updatePrice(@PathVariable Long id,
                                                           @RequestParam BigDecimal price) {
         return ResponseEntity.ok(supplierComponentService.updatePrice(id, price));
+    }
+
+    // Using PUT for deletion to bypass potential 405 Method Not Supported issues with DELETE in some environments
+    @PutMapping("/{id}/delete")
+    public ResponseEntity<Void> deleteFromCatalog(@PathVariable Long id) {
+        supplierComponentService.deleteFromCatalog(id);
+        return ResponseEntity.ok().build();
     }
 }

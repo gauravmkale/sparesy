@@ -8,8 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface CompanyRepository extends JpaRepository<Company, Long> {
-    List<Company> findByType(CompanyType type);
-    List<Company> findByOnboardingStatus(OnboardingStatus status);
+    List<Company> findByTypeAndIsActive(CompanyType type, Boolean isActive);
+    List<Company> findByOnboardingStatusAndIsActive(OnboardingStatus status, Boolean isActive);
     boolean existsByEmail(String email);
-    List<Company> findByTypeAndOnboardingStatus(CompanyType type, OnboardingStatus status);
+    List<Company> findByTypeAndOnboardingStatusAndIsActive(CompanyType type, OnboardingStatus status, Boolean isActive);
 }

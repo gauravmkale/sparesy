@@ -16,15 +16,19 @@ export class SupplierComponentService {
         return this.http.get<any[]>(`${this.api}/my`);
     }
 
-    getBySupplier(supplierId: number): Observable<any[]> {
+    getSupplierCatalog(supplierId: number): Observable<any[]> {
         return this.http.get<any[]>(`${this.api}/${supplierId}`);
     }
 
-    updateStock(id: number, stockQuantity: number): Observable<any> {
-        return this.http.put(`${this.api}/${id}/stock`, null, { params: { stockQuantity: stockQuantity.toString() } });
+    updateStock(id: number, quantity: number): Observable<any> {
+        return this.http.put(`${this.api}/${id}/stock`, null, { params: { quantity } });
     }
 
-    updatePrice(id: number, unitPrice: number): Observable<any> {
-        return this.http.put(`${this.api}/${id}/price`, null, { params: { unitPrice: unitPrice.toString() } });
+    updatePrice(id: number, price: number): Observable<any> {
+        return this.http.put(`${this.api}/${id}/price`, null, { params: { price } });
+    }
+
+    deleteFromCatalog(id: number): Observable<void> {
+        return this.http.put<void>(`${this.api}/${id}/delete`, {});
     }
 }

@@ -7,6 +7,7 @@ import com.sparesy.core.entity.SupplierComponent;
 import com.sparesy.core.repository.SupplierComponentRepository;
 import com.sparesy.core.security.CompanyContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -25,9 +26,31 @@ public class SupplierComponentService {
         this.companyService = companyService;
     }
 
-    // Supplier adds a component from master catalog to their own catalog with their pricing
+    @Transactional
     public SupplierComponent addToSupplierCatalog(SupplierComponentRequestDTO dto) {
         Long supplierId = CompanyContext.getCurrentCompanyId();
+
+        // Find all existing entries (including inactive or duplicates from previous bugs)
+        List<SupplierComponent> existing = 
+            supplierComponentRepository.findAllBySupplierIdAndComponentId(supplierId, dto.getComponentId());
+
+        if (!existing.isEmpty()) {
+            // Take the first one as our primary entry
+            SupplierComponent sc = existing.get(0);
+            sc.setStockQuantity(sc.getStockQuantity() + dto.getStockQuantity());
+            sc.setUnitPrice(dto.getUnitPrice());
+            sc.setLeadTimeDays(dto.getLeadTimeDays());
+            sc.setIsActive(true); // Reactivate if it was deleted
+
+            // If there were multiple duplicates, deactivate the rest to clean up data
+            for (int i = 1; i < existing.size(); i++) {
+                SupplierComponent duplicate = existing.get(i);
+                duplicate.setIsActive(false);
+                supplierComponentRepository.save(duplicate);
+            }
+
+            return supplierComponentRepository.save(sc);
+        }
 
         Company supplier = companyService.getCompanyById(supplierId);
         Component component = componentService.getComponentById(dto.getComponentId());
@@ -43,30 +66,37 @@ public class SupplierComponentService {
         return supplierComponentRepository.save(sc);
     }
 
-    // Supplier views their own catalog
-    public List<SupplierComponent> getBySupplier(Long supplierId) {
-        return supplierComponentRepository.findBySupplierId(supplierId);
+    public void deleteFromCatalog(Long id) {
+        Long supplierId = CompanyContext.getCurrentCompanyId();
+        SupplierComponent sc = getById(id);
+        
+        if (!sc.getSupplier().getId().equals(supplierId)) {
+            throw new RuntimeException("You can only delete items from your own catalog");
+        }
+        
+        sc.setIsActive(false);
+        supplierComponentRepository.save(sc);
     }
 
-    // Manufacturer views a specific supplier's catalog
+    public List<SupplierComponent> getBySupplier(Long supplierId) {
+        return supplierComponentRepository.findBySupplierIdAndIsActive(supplierId, true);
+    }
+
     public List<SupplierComponent> getActiveBySupplier(Long supplierId) {
         return supplierComponentRepository.findBySupplierIdAndIsActive(supplierId, true);
     }
 
-    // Fetch single supplier component — used internally
     public SupplierComponent getById(Long id) {
         return supplierComponentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier component not found with id: " + id));
     }
 
-    // Supplier updates their stock quantity
     public SupplierComponent updateStock(Long id, Integer quantity) {
         SupplierComponent sc = getById(id);
         sc.setStockQuantity(quantity);
         return supplierComponentRepository.save(sc);
     }
 
-    // Supplier updates their unit price
     public SupplierComponent updatePrice(Long id, java.math.BigDecimal price) {
         SupplierComponent sc = getById(id);
         sc.setUnitPrice(price);

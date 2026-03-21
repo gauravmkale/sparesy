@@ -12,6 +12,10 @@ export class RequestService {
         return this.http.post(this.api, data);
     }
 
+    sendBulkRequest(data: any): Observable<any> {
+        return this.http.post(`${this.api}/bulk`, data);
+    }
+
     getByProject(projectId: number): Observable<any[]> {
         return this.http.get<any[]>(`${this.api}/project/${projectId}`);
     }
