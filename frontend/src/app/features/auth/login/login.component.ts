@@ -1,4 +1,4 @@
-import { Component, signal, inject } from "@angular/core";
+import { Component, signal, inject, ChangeDetectionStrategy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { AuthService } from "../../../core/auth/auth.service";
@@ -9,17 +9,18 @@ import { NotificationService } from "../../../core/services/notification.service
     selector: 'app-login',
     templateUrl: './login.component.html',
     standalone: true,
-    imports: [ReactiveFormsModule, CommonModule, RouterModule]
+    imports: [ReactiveFormsModule, CommonModule, RouterModule],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class LoginComponent {
     loginForm: FormGroup;
     isLoading = signal(false);
     
-    auth = inject(AuthService);
-    router = inject(Router);
-    notif = inject(NotificationService);
-    fb = inject(FormBuilder);
+    private auth = inject(AuthService);
+    private router = inject(Router);
+    private notif = inject(NotificationService);
+    private fb = inject(FormBuilder);
 
     constructor() {
         this.loginForm = this.fb.group({
@@ -28,13 +29,12 @@ export class LoginComponent {
         });
     }
 
-
     onSubmit() {
         if (!this.loginForm.valid || this.isLoading()) return;
         
         this.isLoading.set(true);
         this.auth.login(this.loginForm.value).subscribe({
-            next: (res) => {
+            next: () => {
                 this.notif.success('Login successful!');
                 const user = this.auth.getUserFromToken();
                 if (user?.role === 'manufacturer') this.router.navigate(['/manufacturing']);

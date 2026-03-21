@@ -1,26 +1,33 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 
 export interface Notification {
+  id: number;
   message: string;
   type: 'success' | 'error' | 'info';
-  show: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
-  private state = signal<Notification>({ message: '', type: 'info', show: false });
-  notification = this.state.asReadonly();
+  private notificationsState = signal<Notification[]>([]);
+  notifications = this.notificationsState.asReadonly();
+
+  private counter = 0;
 
   show(message: string, type: 'success' | 'error' | 'info' = 'info') {
-    this.state.set({ message, type, show: true });
-    setTimeout(() => this.hide(), 4000);
+    const id = ++this.counter;
+    const newNotif: Notification = { id, message, type };
+    
+    this.notificationsState.update(prev => [...prev, newNotif]);
+
+    // Auto hide after 4 seconds
+    setTimeout(() => this.hide(id), 4000);
   }
 
   success(message: string) { this.show(message, 'success'); }
   error(message: string) { this.show(message, 'error'); }
   info(message: string) { this.show(message, 'info'); }
 
-  hide() {
-    this.state.set({ ...this.state(), show: false });
+  hide(id: number) {
+    this.notificationsState.update(prev => prev.filter(n => n.id !== id));
   }
 }

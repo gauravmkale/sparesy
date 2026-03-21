@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
@@ -12,6 +12,7 @@ import { NotificationService } from '../../../core/services/notification.service
     selector: 'app-mfg-projects',
     standalone: true,
     imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <h1 class="text-2xl font-semibold text-white mb-1">Projects</h1>
@@ -90,7 +91,7 @@ import { NotificationService } from '../../../core/services/notification.service
               <button (click)="showSendRequest.set(true)" class="w-full text-left px-3 py-2 rounded-lg bg-teal-500/10 text-teal-400 text-sm hover:bg-teal-500/20 transition">
                 Send Sourcing Request
               </button>
-              <button (click)="showCreateQuote.set(true)" class="w-full text-left px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm hover:bg-blue-500/20 transition">
+              <button (click)="openCreateQuote()" class="w-full text-left px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm hover:bg-blue-500/20 transition">
                 Create Client Quote
               </button>
             </div>
@@ -165,15 +166,34 @@ import { NotificationService } from '../../../core/services/notification.service
             </div>
             <div class="flex justify-end gap-3 mt-4">
               <button (click)="showSendRequest.set(false)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
-              <button (click)="sendRequest()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">Send</button>
+              <button (click)="sendRequest()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition flex items-center gap-2">
+                <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                {{ isLoading() ? 'Sending...' : 'Send' }}
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Create Quote Modal -->
         <div *ngIf="showCreateQuote()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showCreateQuote.set(false)">
-          <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
+          <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-lg space-y-4" (click)="$event.stopPropagation()">
             <h3 class="text-lg font-semibold text-white">Create Client Quote</h3>
+            
+            <div class="bg-teal-500/5 border border-teal-500/20 rounded-xl p-4 mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-teal-400 uppercase">Automation Tool</span>
+                <span class="text-xs text-gray-500">Base Cost: ₹{{ baseCost() | number }}</span>
+              </div>
+              <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                  <label class="text-[10px] text-gray-500 uppercase font-bold">Profit Margin %</label>
+                  <input type="number" [(ngModel)]="profitMargin" (input)="applyMargin()"
+                    class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-1.5 rounded-lg text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                </div>
+                <button (click)="applyMargin()" class="px-3 py-1.5 bg-teal-500/20 text-teal-400 rounded-lg text-xs font-bold hover:bg-teal-500/30 transition">Apply</button>
+              </div>
+            </div>
+
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Price (₹)</label>
@@ -193,7 +213,10 @@ import { NotificationService } from '../../../core/services/notification.service
             </div>
             <div class="flex justify-end gap-3 mt-4">
               <button (click)="showCreateQuote.set(false)" class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">Cancel</button>
-              <button (click)="createQuote()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition">Create & Send</button>
+              <button (click)="createQuote()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-400 transition flex items-center gap-2">
+                <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                {{ isLoading() ? 'Creating...' : 'Create & Send' }}
+              </button>
             </div>
           </div>
         </div>
@@ -214,47 +237,73 @@ export class MfgProjectsComponent implements OnInit {
     
     newRequest: any = { supplierCompanyId: null, componentId: null, quantityNeeded: 0 };
     newQuote: any = { totalPrice: 0, leadTimeDays: 0, notes: '' };
+    
+    profitMargin = 20;
+    baseCost = signal<number>(0);
 
-    constructor(
-        private projectService: ProjectService,
-        private requestService: RequestService,
-        private quoteService: QuoteService,
-        private companyService: CompanyService,
-        private componentService: ComponentService,
-        private cdr: ChangeDetectorRef,
-        private notif: NotificationService
-    ) { }
+    private projectService = inject(ProjectService);
+    private requestService = inject(RequestService);
+    private quoteService = inject(QuoteService);
+    private companyService = inject(CompanyService);
+    private componentService = inject(ComponentService);
+    private notif = inject(NotificationService);
 
     ngOnInit() {
         this.loadProjects();
         this.companyService.getSuppliers().subscribe({
-            next: d => { this.suppliers.set(d || []); this.cdr.detectChanges(); },
+            next: d => this.suppliers.set(d || []),
             error: () => { }
         });
         this.componentService.getAll().subscribe({
-            next: d => { this.components.set(d || []); this.cdr.detectChanges(); },
+            next: d => this.components.set(d || []),
             error: () => { }
         });
     }
 
     loadProjects() {
+        this.isLoading.set(true);
         this.projectService.getAllProjects().subscribe({
-            next: d => { this.projects.set(d || []); this.cdr.detectChanges(); },
-            error: () => { }
+            next: d => { this.projects.set(d || []); this.isLoading.set(false); },
+            error: () => this.isLoading.set(false)
         });
     }
 
     selectProject(p: any) {
         this.selectedProject.set(p);
+        this.isLoading.set(true);
         this.requestService.getByProject(p.id).subscribe({
-            next: d => { this.requests.set(d || []); this.cdr.detectChanges(); },
-            error: () => { }
+            next: d => { 
+                this.requests.set(d || []); 
+                this.isLoading.set(false); 
+                this.calculateBaseCost();
+            },
+            error: () => this.isLoading.set(false)
         });
+    }
+
+    calculateBaseCost() {
+        const total = this.requests()
+            .filter(r => r.status === 'APPROVED')
+            .reduce((sum, r) => sum + (r.quotedPrice || 0), 0);
+        this.baseCost.set(total);
+    }
+
+    openCreateQuote() {
+        this.calculateBaseCost();
+        this.applyMargin();
+        this.showCreateQuote.set(true);
+    }
+
+    applyMargin() {
+        const cost = this.baseCost();
+        const marginMultiplier = 1 + (this.profitMargin / 100);
+        this.newQuote.totalPrice = Math.round(cost * marginMultiplier);
     }
 
     updateStatus(id: number, event: any) {
         this.projectService.updateStatus(id, event.target.value).subscribe({
-            next: () => this.loadProjects(), error: (e: any) => this.notif.error(e.error?.message || 'Error updating status')
+            next: () => this.loadProjects(), 
+            error: (e: any) => this.notif.error(e.error?.message || 'Error updating status')
         });
     }
 
@@ -278,14 +327,20 @@ export class MfgProjectsComponent implements OnInit {
 
     approveRequest(id: number) {
         this.requestService.approve(id).subscribe({
-            next: () => { this.notif.success('Request approved'); this.selectProject(this.selectedProject()); },
+            next: () => { 
+                this.notif.success('Request approved'); 
+                this.selectProject(this.selectedProject()); 
+            },
             error: (e: any) => this.notif.error(e.error?.message || 'Error')
         });
     }
 
     rejectRequest(id: number) {
         this.requestService.reject(id).subscribe({
-            next: () => { this.notif.success('Request rejected'); this.selectProject(this.selectedProject()); },
+            next: () => { 
+                this.notif.success('Request rejected'); 
+                this.selectProject(this.selectedProject()); 
+            },
             error: (e: any) => this.notif.error(e.error?.message || 'Error')
         });
     }
@@ -301,6 +356,7 @@ export class MfgProjectsComponent implements OnInit {
                       this.isLoading.set(false);
                       this.showCreateQuote.set(false); 
                       this.notif.success('Quote created and sent to client!'); 
+                      this.loadProjects();
                     },
                     error: () => { 
                       this.isLoading.set(false);

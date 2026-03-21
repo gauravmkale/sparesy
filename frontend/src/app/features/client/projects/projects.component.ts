@@ -1,13 +1,15 @@
-import { Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
 import { ProductionService } from '../../../core/services/production.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-client-projects',
     standalone: true,
     imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -54,7 +56,8 @@ import { ProductionService } from '../../../core/services/production.service';
         </div>
         <div class="flex justify-end mt-4">
           <button (click)="submitProject()" [disabled]="isLoading()" 
-            class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition">
+            class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition flex items-center gap-2">
+            <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
             {{ isLoading() ? 'Submitting...' : 'Submit Project' }}
           </button>
         </div>
@@ -132,31 +135,23 @@ export class ClientProjectsComponent implements OnInit {
     newProject: any = { name: '', quantity: 100, layerCount: 2, boardThickness: 1.6, surfaceFinish: 'HASL' };
     stages = ['COMPONENT_PREP', 'PCB_FABRICATION', 'SMT_ASSEMBLY', 'SOLDERING', 'QC_INSPECTION', 'PACKAGING', 'READY'];
 
-    constructor(
-        private projectService: ProjectService,
-        private prodService: ProductionService,
-        private cdr: ChangeDetectorRef
-    ) { }
+    private projectService = inject(ProjectService);
+    private prodService = inject(ProductionService);
+    private notif = inject(NotificationService);
 
     ngOnInit() { this.load(); }
 
     load() {
         this.projectService.getMyProjects().subscribe({
-            next: d => {
-              this.projects.set(d || []);
-              this.cdr.detectChanges();
-            },
-            error: () => { }
+            next: d => this.projects.set(d || []),
+            error: () => this.notif.error('Failed to load projects')
         });
     }
 
     selectProject(p: any) {
         this.selectedProject.set(p);
         this.prodService.getByProject(p.id).subscribe({
-            next: d => {
-              this.productionOrder.set(d);
-              this.cdr.detectChanges();
-            },
+            next: d => this.productionOrder.set(d),
             error: () => this.productionOrder.set(null)
         });
     }
@@ -170,10 +165,11 @@ export class ClientProjectsComponent implements OnInit {
                 this.showForm.set(false); 
                 this.newProject = { name: '', quantity: 100, layerCount: 2, boardThickness: 1.6, surfaceFinish: 'HASL' }; 
                 this.load(); 
+                this.notif.success('Project submitted successfully');
             },
             error: (e: any) => {
               this.isLoading.set(false);
-              alert(e.error?.message || 'Error submitting project');
+              this.notif.error(e.error?.message || 'Error submitting project');
             }
         });
     }

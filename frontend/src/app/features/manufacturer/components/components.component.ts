@@ -1,12 +1,14 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ComponentService } from '../../../core/services/component.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-components',
     standalone: true,
     imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -41,20 +43,27 @@ import { ComponentService } from '../../../core/services/component.service';
           </div>
         </div>
         <div class="flex justify-end mt-4">
-          <button (click)="addComponent()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">Save Component</button>
+          <button (click)="addComponent()" [disabled]="isLoading()" class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition flex items-center gap-2">
+            <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            {{ isLoading() ? 'Saving...' : 'Save Component' }}
+          </button>
         </div>
       </div>
 
       <!-- Search -->
       <div class="flex gap-3 mb-4">
-        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by part number..."
+        <input type="text" [(ngModel)]="searchTerm" (keyup.enter)="searchByPart()" placeholder="Search by part number..."
           class="bg-[#1a1a1a] border border-gray-700 text-white px-4 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 w-64" />
         <button (click)="searchByPart()" class="px-4 py-2 rounded-xl bg-white/5 text-gray-300 text-sm hover:bg-white/10 transition">Search</button>
         <button (click)="loadAll()" class="px-4 py-2 rounded-xl bg-white/5 text-gray-300 text-sm hover:bg-white/10 transition">Show All</button>
       </div>
 
       <!-- Table -->
-      <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
+      <div *ngIf="isInitialLoading()" class="flex justify-center py-12">
+        <div class="h-8 w-8 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin"></div>
+      </div>
+
+      <div *ngIf="!isInitialLoading()" class="bg-[#141414] border border-gray-800/60 rounded-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -87,18 +96,28 @@ import { ComponentService } from '../../../core/services/component.service';
 export class MfgComponentsComponent implements OnInit {
     components = signal<any[]>([]);
     showAddForm = signal<boolean>(false);
+    isInitialLoading = signal<boolean>(true);
+    isLoading = signal<boolean>(false);
     
     searchTerm = '';
     newComp: any = { name: '', partNumber: '', category: '', description: '' };
 
-    constructor(private compService: ComponentService) { }
+    private compService = inject(ComponentService);
+    private notif = inject(NotificationService);
 
     ngOnInit() { this.loadAll(); }
 
     loadAll() {
+        this.isInitialLoading.set(true);
         this.compService.getAll().subscribe({
-            next: d => this.components.set(d || []),
-            error: () => { }
+            next: d => {
+                this.components.set(d || []);
+                this.isInitialLoading.set(false);
+            },
+            error: () => {
+                this.isInitialLoading.set(false);
+                this.notif.error('Failed to load components');
+            }
         });
     }
 
@@ -106,18 +125,28 @@ export class MfgComponentsComponent implements OnInit {
         if (!this.searchTerm.trim()) return this.loadAll();
         this.compService.search(this.searchTerm).subscribe({
             next: d => this.components.set(Array.isArray(d) ? d : [d]),
-            error: () => this.components.set([])
+            error: () => {
+                this.components.set([]);
+                this.notif.error('Search failed');
+            }
         });
     }
 
     addComponent() {
+        if (this.isLoading()) return;
+        this.isLoading.set(true);
         this.compService.addComponent(this.newComp).subscribe({
             next: () => { 
+                this.isLoading.set(false);
                 this.showAddForm.set(false); 
                 this.newComp = { name: '', partNumber: '', category: '', description: '' }; 
-                this.loadAll(); 
+                this.loadAll();
+                this.notif.success('Component added successfully');
             },
-            error: (e: any) => alert(e.error?.message || 'Error adding component')
+            error: (e: any) => {
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error adding component');
+            }
         });
     }
 }

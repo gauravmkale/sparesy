@@ -1,71 +1,79 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectService } from '../../../core/services/project.service';
 import { ProductionService } from '../../../core/services/production.service';
 import { InventoryService } from '../../../core/services/inventory.service';
 import { TransactionService } from '../../../core/services/transaction.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
     selector: 'app-mfg-overview',
     standalone: true,
     imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <h1 class="text-2xl font-semibold text-white mb-1">Dashboard Overview</h1>
       <p class="text-gray-500 text-sm mb-6">Your manufacturing operations at a glance</p>
 
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-4 gap-4 mb-8">
-        <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Projects</p>
-          <p class="text-3xl font-bold text-white mt-2">{{ projects().length }}</p>
-        </div>
-        <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Active Production</p>
-          <p class="text-3xl font-bold text-teal-400 mt-2">{{ productionOrders().length }}</p>
-        </div>
-        <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Low Stock Alerts</p>
-          <p class="text-3xl font-bold text-amber-400 mt-2">{{ alerts().length }}</p>
-        </div>
-        <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
-          <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Revenue</p>
-          <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue() | number }}</p>
-        </div>
+      <div *ngIf="isLoading()" class="flex justify-center py-12">
+        <div class="h-8 w-8 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin"></div>
       </div>
 
-      <!-- Recent Projects -->
-      <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
-        <div class="px-5 py-4 border-b border-gray-800/60">
-          <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Recent Projects</h3>
+      <ng-container *ngIf="!isLoading()">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-4 gap-4 mb-8">
+          <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Projects</p>
+            <p class="text-3xl font-bold text-white mt-2">{{ projects().length }}</p>
+          </div>
+          <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Active Production</p>
+            <p class="text-3xl font-bold text-teal-400 mt-2">{{ productionOrders().length }}</p>
+          </div>
+          <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Low Stock Alerts</p>
+            <p class="text-3xl font-bold text-amber-400 mt-2">{{ alerts().length }}</p>
+          </div>
+          <div class="bg-[#141414] border border-gray-800/60 rounded-xl p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Revenue</p>
+            <p class="text-3xl font-bold text-emerald-400 mt-2">₹{{ totalRevenue() | number }}</p>
+          </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-gray-500 text-xs uppercase tracking-wider">
-                <th class="text-left px-5 py-3 font-medium">Project</th>
-                <th class="text-left px-5 py-3 font-medium">Client</th>
-                <th class="text-left px-5 py-3 font-medium">Status</th>
-                <th class="text-left px-5 py-3 font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let p of projects().slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
-                <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ p.client?.name || '—' }}</td>
-                <td class="px-5 py-3">
-                  <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
-                    [ngClass]="getStatusClass(p.status)">{{ p.status }}</span>
-                </td>
-                <td class="px-5 py-3 text-gray-500">{{ p.submittedAt | date:'mediumDate' }}</td>
-              </tr>
-              <tr *ngIf="projects().length === 0">
-                <td colspan="4" class="px-5 py-8 text-center text-gray-600">No projects yet</td>
-              </tr>
-            </tbody>
-          </table>
+
+        <!-- Recent Projects -->
+        <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
+          <div class="px-5 py-4 border-b border-gray-800/60">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Recent Projects</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-gray-500 text-xs uppercase tracking-wider">
+                  <th class="text-left px-5 py-3 font-medium">Project</th>
+                  <th class="text-left px-5 py-3 font-medium">Client</th>
+                  <th class="text-left px-5 py-3 font-medium">Status</th>
+                  <th class="text-left px-5 py-3 font-medium">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of projects().slice(0, 5)" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
+                  <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
+                  <td class="px-5 py-3 text-gray-400">{{ p.client?.name || '—' }}</td>
+                  <td class="px-5 py-3">
+                    <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
+                      [ngClass]="getStatusClass(p.status)">{{ p.status }}</span>
+                  </td>
+                  <td class="px-5 py-3 text-gray-500">{{ p.submittedAt | date:'mediumDate' }}</td>
+                </tr>
+                <tr *ngIf="projects().length === 0">
+                  <td colspan="4" class="px-5 py-8 text-center text-gray-600">No projects yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </ng-container>
     </div>
   `
 })
@@ -74,30 +82,28 @@ export class MfgOverviewComponent implements OnInit {
     productionOrders = signal<any[]>([]);
     alerts = signal<any[]>([]);
     totalRevenue = signal<number>(0);
+    isLoading = signal<boolean>(true);
 
-    constructor(
-        private projectService: ProjectService,
-        private productionService: ProductionService,
-        private inventoryService: InventoryService,
-        private transactionService: TransactionService
-    ) { }
+    private projectService = inject(ProjectService);
+    private productionService = inject(ProductionService);
+    private inventoryService = inject(InventoryService);
+    private transactionService = inject(TransactionService);
 
     ngOnInit() {
-        this.projectService.getAllProjects().subscribe({
-            next: d => this.projects.set(d || []),
-            error: () => { }
-        });
-        this.productionService.getAll().subscribe({
-            next: d => this.productionOrders.set(d || []),
-            error: () => { }
-        });
-        this.inventoryService.getAlerts().subscribe({
-            next: d => this.alerts.set(d || []),
-            error: () => { }
-        });
-        this.transactionService.getRevenue('MANUFACTURER_REVENUE').subscribe({
-            next: d => this.totalRevenue.set(d || 0),
-            error: () => { }
+        forkJoin({
+            projects: this.projectService.getAllProjects(),
+            production: this.productionService.getAll(),
+            alerts: this.inventoryService.getAlerts(),
+            revenue: this.transactionService.getRevenue('MANUFACTURER_REVENUE')
+        }).subscribe({
+            next: (data) => {
+                this.projects.set(data.projects || []);
+                this.productionOrders.set(data.production || []);
+                this.alerts.set(data.alerts || []);
+                this.totalRevenue.set(data.revenue || 0);
+                this.isLoading.set(false);
+            },
+            error: () => this.isLoading.set(false)
         });
     }
 

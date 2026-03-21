@@ -1,14 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { trigger, transition, style, animate, state } from '@angular/animations';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-register',
+    standalone: true,
     templateUrl: './register.component.html',
     imports: [ReactiveFormsModule, CommonModule, RouterModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     animations: [
         trigger('slideStep', [
             state('enter-from-right', style({ transform: 'translateX(0)', opacity: 1 })),
@@ -49,12 +52,13 @@ import { trigger, transition, style, animate, state } from '@angular/animations'
 })
 export class RegisterComponent implements OnInit {
     registerForm: FormGroup;
-    currentStep = 1;
+    currentStep = signal(1);
     totalSteps = 3;
-    slideDirection: 'left' | 'right' = 'right';
-    showSuccessPopup = false;
+    slideDirection = signal<'left' | 'right'>('right');
+    showSuccessPopup = signal(false);
+    isLoading = signal(false);
+    invalidToken = signal(false);
     inviteToken: string | null = null;
-    invalidToken = false;
 
     steps = [
         { number: 1, label: 'Company' },
@@ -62,12 +66,13 @@ export class RegisterComponent implements OnInit {
         { number: 3, label: 'Contact' }
     ];
 
-    constructor(
-        private fb: FormBuilder,
-        private auth: AuthService,
-        private router: Router,
-        private route: ActivatedRoute
-    ) {
+    private fb = inject(FormBuilder);
+    private auth = inject(AuthService);
+    private router = inject(Router);
+    private route = inject(ActivatedRoute);
+    private notif = inject(NotificationService);
+
+    constructor() {
         this.registerForm = this.fb.group({
             companyName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
             companyType: ['', Validators.required],
@@ -97,24 +102,22 @@ export class RegisterComponent implements OnInit {
     ngOnInit() {
         this.inviteToken = this.route.snapshot.queryParams['token'] || null;
 
-        // If a token is present, validate it on load
         if (this.inviteToken) {
             this.auth.validateInvite(this.inviteToken).subscribe({
                 next: (inv: any) => {
-                    // Pre-fill company type from invitation
                     this.registerForm.patchValue({ companyType: inv.type });
-                    // Lock company type — it's set by the manufacturer's invite
                     this.registerForm.get('companyType')?.disable();
                 },
                 error: () => {
-                    this.invalidToken = true;
+                    this.invalidToken.set(true);
+                    this.notif.error('Invalid or expired invitation token');
                 }
             });
         }
     }
 
     get stepFields(): string[] {
-        switch (this.currentStep) {
+        switch (this.currentStep()) {
             case 1: return ['companyName', 'companyType', 'gstNumber'];
             case 2: return ['email', 'password'];
             case 3: return ['contactNumber', 'contactPersonName', 'address', 'pincode'];
@@ -141,28 +144,30 @@ export class RegisterComponent implements OnInit {
     nextStep() {
         this.markCurrentStepDirty();
         if (!this.isCurrentStepValid()) return;
-        if (this.currentStep < this.totalSteps) {
-            this.slideDirection = 'right';
-            this.currentStep++;
+        if (this.currentStep() < this.totalSteps) {
+            this.slideDirection.set('right');
+            this.currentStep.update(s => s + 1);
         }
     }
 
     prevStep() {
-        if (this.currentStep > 1) {
-            this.slideDirection = 'left';
-            this.currentStep--;
+        if (this.currentStep() > 1) {
+            this.slideDirection.set('left');
+            this.currentStep.update(s => s - 1);
         }
     }
 
     get slideAnimation(): string {
-        return this.slideDirection === 'right' ? 'enter-from-right' : 'enter-from-left';
+        return this.slideDirection() === 'right' ? 'enter-from-right' : 'enter-from-left';
     }
 
     onSubmit() {
+        if (this.isLoading()) return;
         this.markCurrentStepDirty();
         if (!this.registerForm.valid) return;
 
-        const v = this.registerForm.getRawValue(); // getRawValue includes disabled fields
+        this.isLoading.set(true);
+        const v = this.registerForm.getRawValue();
         const payload: any = {
             name: v.companyName,
             email: v.email,
@@ -171,25 +176,28 @@ export class RegisterComponent implements OnInit {
             gstNumber: v.gstNumber,
             contactNumber: v.contactNumber,
             address: v.address,
-            pincode: v.pincode,
+            pinCode: v.pincode, // API expects pinCode
             contactPersonName: v.contactPersonName
         };
 
-        // Attach invite token if present
         if (this.inviteToken) {
             payload.inviteToken = this.inviteToken;
         }
 
         this.auth.register(payload).subscribe({
-            next: () => { this.showSuccessPopup = true; },
+            next: () => { 
+                this.isLoading.set(false);
+                this.showSuccessPopup.set(true); 
+            },
             error: err => {
-                alert('Registration failed: ' + (err.error?.message || 'Something went wrong'));
+                this.isLoading.set(false);
+                this.notif.error(err.error?.message || 'Registration failed');
             }
         });
     }
 
     closePopup() {
-        this.showSuccessPopup = false;
+        this.showSuccessPopup.set(false);
         this.router.navigate(['/auth/login']);
     }
 }

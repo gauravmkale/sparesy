@@ -1,11 +1,13 @@
-import { Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductionService } from '../../../core/services/production.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-mfg-production',
     standalone: true,
     imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <h1 class="text-2xl font-semibold text-white mb-1">Production</h1>
@@ -43,8 +45,9 @@ import { ProductionService } from '../../../core/services/production.service';
                 </td>
                 <td class="px-5 py-3">
                   <button *ngIf="o.currentStage !== 'READY'" (click)="advance(o.id)" [disabled]="isLoading()"
-                    class="text-xs px-3 py-1.5 rounded-lg bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium">
-                    {{ isLoading() ? '...' : 'Advance →' }}
+                    class="text-xs px-3 py-1.5 rounded-lg bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center gap-2">
+                    <span *ngIf="isLoading()" class="h-3 w-3 border-2 border-teal-400/30 border-t-teal-400 rounded-full animate-spin"></span>
+                    {{ isLoading() ? 'Advancing...' : 'Advance →' }}
                   </button>
                   <span *ngIf="o.currentStage === 'READY'" class="text-emerald-400 text-xs font-semibold">✓ Complete</span>
                 </td>
@@ -64,20 +67,22 @@ export class MfgProductionComponent implements OnInit {
     isLoading = signal<boolean>(false);
     stages = ['COMPONENT_PREP', 'PCB_FABRICATION', 'SMT_ASSEMBLY', 'SOLDERING', 'QC_INSPECTION', 'PACKAGING', 'READY'];
 
-    constructor(
-      private prodService: ProductionService,
-      private cdr: ChangeDetectorRef
-    ) { }
+    private prodService = inject(ProductionService);
+    private notif = inject(NotificationService);
 
     ngOnInit() { this.load(); }
 
     load() {
+        this.isLoading.set(true);
         this.prodService.getAll().subscribe({
             next: d => {
               this.orders.set(d || []);
-              this.cdr.detectChanges();
+              this.isLoading.set(false);
             },
-            error: () => { }
+            error: (err) => { 
+              this.isLoading.set(false);
+              this.notif.error(err.error?.message || 'Failed to load production orders');
+            }
         });
     }
 
@@ -97,11 +102,12 @@ export class MfgProductionComponent implements OnInit {
         this.prodService.advanceStage(id).subscribe({
             next: () => {
               this.isLoading.set(false);
+              this.notif.success('Production stage advanced');
               this.load();
             },
             error: (e: any) => {
               this.isLoading.set(false);
-              alert(e.error?.message || 'Error');
+              this.notif.error(e.error?.message || 'Error advancing stage');
             }
         });
     }
