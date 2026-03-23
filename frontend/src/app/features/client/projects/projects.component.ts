@@ -32,17 +32,17 @@ import { NotificationService } from '../../../core/services/notification.service
             <input type="text" [(ngModel)]="newProject.name" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
           </div>
           <div>
-            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Quantity</label>
-            <input type="number" [(ngModel)]="newProject.quantity" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
-          </div>
-          <div>
-            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Layer Count</label>
-            <input type="number" [(ngModel)]="newProject.layerCount" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
-          </div>
-          <div>
-            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Board Thickness (mm)</label>
-            <input type="number" [(ngModel)]="newProject.boardThickness" step="0.1" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
-          </div>
+            <input type="number" [(ngModel)]="newProject.quantity" min="1"
+              class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
+            <p *ngIf="newProject.quantity < 1" class="text-red-400 text-xs mt-1">Quantity must be at least 1</p>
+
+            <input type="number" [(ngModel)]="newProject.layerCount" min="1"
+              class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
+            <p *ngIf="newProject.layerCount < 1" class="text-red-400 text-xs mt-1">Layer count must be at least 1</p>
+
+            <input type="number" [(ngModel)]="newProject.boardThickness" min="0.1" step="0.1"
+              class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
+            <p *ngIf="newProject.boardThickness < 0.1" class="text-red-400 text-xs mt-1">Thickness must be greater than 0</p>
           <div class="col-span-2">
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Surface Finish</label>
             <select [(ngModel)]="newProject.surfaceFinish" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1">
@@ -157,7 +157,19 @@ export class ClientProjectsComponent implements OnInit {
     }
 
     submitProject() {
-        if (this.isLoading()) return;
+          if (this.isLoading()) return;
+          if (!this.newProject.name?.trim()) {
+              this.notif.error('Project name is required');
+              return;
+          }
+          if (this.newProject.quantity < 1) {
+              this.notif.error('Quantity must be at least 1');
+              return;
+          }
+          if (this.newProject.boardThickness < 0.1) {
+              this.notif.error('Board thickness must be greater than 0');
+              return;
+          }
         this.isLoading.set(true);
         this.projectService.submitProject(this.newProject).subscribe({
             next: () => { 

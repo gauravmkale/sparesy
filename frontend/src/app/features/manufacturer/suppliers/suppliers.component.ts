@@ -83,6 +83,14 @@ import { NotificationService } from '../../../core/services/notification.service
           <p class="text-gray-500 text-sm mt-1">{{ s?.email }}</p>
           <p class="text-gray-600 text-xs mt-1">{{ s?.contactPersonName }}</p>
         </div>
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
+          [ngClass]="{
+            'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': s?.onboardingStatus === 'APPROVED',
+            'bg-amber-500/10 text-amber-400 border border-amber-500/20': s?.onboardingStatus === 'PENDING',
+            'bg-red-500/10 text-red-400 border border-red-500/20': s?.onboardingStatus === 'REJECTED'
+          }">
+          {{ s?.onboardingStatus || 'ACTIVE' }}
+        </span>
         <div *ngIf="suppliers().length === 0" class="col-span-3 text-center py-12 bg-[#111111] border border-gray-800/40 rounded-2xl">
           <p class="text-gray-600">No suppliers registered yet.</p>
           <button (click)="showInviteModal.set(true)" class="text-teal-400 text-sm mt-2 hover:underline">Generate an invite link</button>

@@ -287,10 +287,11 @@ export class MfgProjectsComponent implements OnInit {
     
     newRequest: any = { supplierCompanyId: null, componentId: null, quantityNeeded: 0, targetPrice: null };
     targetDeliveryDate = '';
-    newQuote: any = { totalPrice: 0, leadTimeDays: 0, notes: '' };
+    newQuote: any = { totalPrice: 0, leadTimeDays: 7, notes: '' };
     
     profitMargin = 20;
     baseCost = signal<number>(0);
+    selectedSupplierId = signal<number | null>(null);
 
     filteredComponents = computed(() => {
         if (this.sourcingMode() === 'BULK') return this.allComponents();
@@ -352,14 +353,20 @@ export class MfgProjectsComponent implements OnInit {
     openSendRequest() {
         this.sourcingMode.set('SINGLE');
         this.showConfirmRequest.set(false);
+        this.selectedSupplierId.set(null);
+        this.supplierSpecificComponents.set([]);
         this.showSendRequest.set(true);
     }
 
     onSupplierChange() {
-        if (this.newRequest.supplierCompanyId) {
-            this.supplierCompService.getSupplierCatalog(this.newRequest.supplierCompanyId).subscribe({
+        const id = this.newRequest.supplierCompanyId;
+        this.selectedSupplierId.set(id);
+        if (id) {
+            this.supplierCompService.getSupplierCatalog(id).subscribe({
                 next: (scs: any[]) => {
-                    this.supplierSpecificComponents.set(scs.map(sc => sc.component));
+                    this.supplierSpecificComponents.set(
+                        scs.map(sc => sc.component).filter(c => c != null)
+                    );
                 }
             });
         } else {

@@ -62,7 +62,7 @@ public class RequestController {
     @PutMapping("/{id}/quote")
     public ResponseEntity<Request> submitQuote(@PathVariable Long id,
                                                @RequestParam BigDecimal price,
-                                               @RequestParam LocalDateTime delivery) {
+                                               @RequestParam(required = false) LocalDateTime delivery) {
         return ResponseEntity.ok(requestService.submitQuote(id, price, delivery));
     }
 

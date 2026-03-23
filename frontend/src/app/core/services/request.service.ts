@@ -25,14 +25,13 @@ export class RequestService {
     }
 
     submitQuote(id: number, data: any): Observable<any> {
-        const deliveryDate = new Date();
-        deliveryDate.setDate(deliveryDate.getDate() + data.deliveryDays);
-        return this.http.put(`${this.api}/${id}/quote`, null, {
-            params: {
-                price: data.quotedPrice.toString(),
-                delivery: deliveryDate.toISOString().slice(0, 19)
-            }
-        });
+        const params: any = {
+            price: data.quotedPrice.toString()
+        };
+        if (data.delivery) {
+            params['delivery'] = data.delivery;
+        }
+        return this.http.put(`${this.api}/${id}/quote`, null, { params });
     }
 
     approve(id: number): Observable<any> {

@@ -82,8 +82,13 @@ import { NotificationService } from '../../../core/services/notification.service
               <p class="text-gray-500 text-sm mt-1">{{ c?.email }}</p>
               <p class="text-gray-600 text-xs mt-1">{{ c?.contactPersonName }}</p>
             </div>
-            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Active
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              [ngClass]="{
+                'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': c?.onboardingStatus === 'APPROVED',
+                'bg-amber-500/10 text-amber-400 border border-amber-500/20': c?.onboardingStatus === 'PENDING',
+                'bg-red-500/10 text-red-400 border border-red-500/20': c?.onboardingStatus === 'REJECTED'
+              }">
+              {{ c?.onboardingStatus || 'ACTIVE' }}
             </span>
           </div>
           <div class="mt-3 pt-3 border-t border-gray-800/40 text-xs text-gray-500 line-clamp-2">

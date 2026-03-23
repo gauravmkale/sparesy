@@ -155,14 +155,14 @@ export class SupRequestsComponent implements OnInit {
 
     useTargetPrice() {
         this.quoteData.quotedPrice = this.quotingRequest().targetPrice;
-    }
-
+      }
     submitQuote() {
         if (this.isLoading()) return;
         this.isLoading.set(true);
         
-        // Convert date to LocalDateTime format
-        const delivery = this.quoteData.deliveryDate ? this.quoteData.deliveryDate + 'T00:00:00' : null;
+        const delivery = this.quoteData.deliveryDate 
+            ? this.quoteData.deliveryDate + 'T00:00:00' 
+            : null;
         
         this.reqService.submitQuote(this.quotingRequest().id, {
             quotedPrice: this.quoteData.quotedPrice,
@@ -175,8 +175,8 @@ export class SupRequestsComponent implements OnInit {
                 this.load(); 
             },
             error: (e: any) => {
-              this.isLoading.set(false);
-              this.notif.error(e.error?.message || 'Error submitting quote');
+                this.isLoading.set(false);
+                this.notif.error(e.error?.message || 'Error submitting quote');
             }
         });
     }
