@@ -82,7 +82,7 @@ public class WorkflowService {
 
         // Step 4 — record manufacturer revenue transaction
         // Find the manufacturer company — there is only one MANUFACTURER in the system
-        companyRepository.findByType(com.sparesy.core.enums.CompanyType.MANUFACTURER)
+        companyRepository.findByTypeAndIsActive(com.sparesy.core.enums.CompanyType.MANUFACTURER, true)
                 .stream()
                 .findFirst()
                 .ifPresent(manufacturer ->

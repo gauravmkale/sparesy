@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.method.P;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -50,6 +51,9 @@ public class RequestService {
 
     // Manufacturer sends a component request to a supplier for a specific project
     public Request sendRequest(RequestRequestDTO dto) {
+        if(dto.getSupplierCompanyId() == null){
+            throw new RuntimeException("Supplier company id is required for single requests");
+        }
         Project project = projectService.getProjectById(dto.getProjectId());
         Company supplier = companyService.getCompanyById(dto.getSupplierCompanyId());
         Component component = componentService.getComponentById(dto.getComponentId());

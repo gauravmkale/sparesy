@@ -16,7 +16,8 @@ public class RequestRequestDTO {
     @NotNull(message = "Project id is required")
     private Long projectId;
 
-    @NotNull(message = "Supplier company id is required")
+    // Removed for bulk requests.
+    // @NotNull(message = "Supplier company id is required")
     private Long supplierCompanyId;
 
     @NotNull(message = "Component id is required")
