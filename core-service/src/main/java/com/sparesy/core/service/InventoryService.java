@@ -68,7 +68,7 @@ public class InventoryService {
 
     // Returns all inventory records where stock is below reorder threshold
     public List<Inventory> getLowStockAlerts() {
-        return inventoryRepository.findByQuantityOnHandLessThan(10);
+        return inventoryRepository.findLowStock();
     }
 
     public InventoryResponseDTO toInventoryResponseDTO(Inventory inventory) {

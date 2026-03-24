@@ -49,7 +49,6 @@ public class RequestController {
 
     @GetMapping("/project/{projectId}/client")
     public ResponseEntity<List<RequestResponseDTO>> getClientRequestsByProject(@PathVariable Long projectId) {
-        System.out.println("controller hit");
         return ResponseEntity.ok(requestService.toRequestResponseDTOs(requestService.getClientVisibleRequests(projectId)));
     }
 

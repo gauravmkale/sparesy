@@ -48,7 +48,6 @@ public class ComponentService {
 
     // Search by exact part number — used during BOM matching
     public Component searchByPartNumber(String partNumber) {
-        System.out.println("service hit");
         return componentRepository.findByPartNumber(partNumber)
                 .orElseThrow(() -> new RuntimeException("Component not found with part number: " + partNumber));
     }
