@@ -46,12 +46,18 @@ public class ComponentService {
 
     // Search by exact part number — used during BOM matching
     public Component searchByPartNumber(String partNumber) {
+        System.out.println("service hit");
         return componentRepository.findByPartNumber(partNumber)
                 .orElseThrow(() -> new RuntimeException("Component not found with part number: " + partNumber));
     }
 
     // Filter by category — used when manufacturer browses catalog
+    // Returns a list of components matching a search keyword
     public List<Component> getByCategory(String category) {
         return componentRepository.findByCategory(category);
+    }
+
+    public List<Component> searchByKeyword(String keyword){
+        return componentRepository.searchByKeyword(keyword);
     }
 }

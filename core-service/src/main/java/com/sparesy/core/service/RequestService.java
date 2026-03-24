@@ -109,6 +109,10 @@ public class RequestService {
         return requestRepository.findBySupplierId(supplierId);
     }
 
+    public List<Request> getClientVisibleRequests(Long projectId){
+        return requestRepository.findByProjectId(projectId);
+    }
+
     public Request submitQuote(Long id, BigDecimal price, LocalDateTime delivery) {
         Request request = getRequestById(id);
         request.setQuotedPrice(price);

@@ -46,9 +46,10 @@ public class ComponentController {
 
     // GET /api/components/search?partNumber=ABC123
     // Search by exact part number — used during BOM matching
+
     @GetMapping("/search")
-    public ResponseEntity<Component> searchByPartNumber(@RequestParam String partNumber) {
-        return ResponseEntity.ok(componentService.searchByPartNumber(partNumber));
+    public ResponseEntity<List<Component>> searchByPartNumber(@RequestParam String partNumber){
+        return ResponseEntity.ok(componentService.searchByKeyword(partNumber));
     }
 
     // GET /api/components/category?category=Resistors
@@ -57,4 +58,5 @@ public class ComponentController {
     public ResponseEntity<List<Component>> getByCategory(@RequestParam String category) {
         return ResponseEntity.ok(componentService.getByCategory(category));
     }
+
 }

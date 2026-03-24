@@ -71,26 +71,31 @@ import { NotificationService } from '../../../core/services/notification.service
           (click)="selectSupplier(s)"
           class="bg-[#141414] border rounded-xl p-5 cursor-pointer transition-all duration-150 hover:border-teal-500/50 relative group"
           [ngClass]="{ 'border-teal-500/50 bg-teal-500/5': selectedSupplier()?.id === s.id, 'border-gray-800/60': selectedSupplier()?.id !== s.id }">
-          
-          <button (click)="confirmDelete($event, s)" 
+
+          <button (click)="confirmDelete($event, s)"
             class="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
 
-          <h3 class="text-white font-semibold">{{ s?.name || 'Untitled Supplier' }}</h3>
+          <!-- Card content uses s (the loop variable) -->
+          <div class="flex items-start justify-between pr-6">
+            <h3 class="text-white font-semibold">{{ s?.name || 'Untitled Supplier' }}</h3>
+            <!-- Status badge moved INSIDE the card -->
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              [ngClass]="{
+                'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': s?.onboardingStatus === 'APPROVED',
+                'bg-amber-500/10 text-amber-400 border border-amber-500/20': s?.onboardingStatus === 'PENDING',
+                'bg-red-500/10 text-red-400 border border-red-500/20': s?.onboardingStatus === 'REJECTED'
+              }">
+              {{ s?.onboardingStatus || 'ACTIVE' }}
+            </span>
+          </div>
           <p class="text-gray-500 text-sm mt-1">{{ s?.email }}</p>
           <p class="text-gray-600 text-xs mt-1">{{ s?.contactPersonName }}</p>
         </div>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
-          [ngClass]="{
-            'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': s?.onboardingStatus === 'APPROVED',
-            'bg-amber-500/10 text-amber-400 border border-amber-500/20': s?.onboardingStatus === 'PENDING',
-            'bg-red-500/10 text-red-400 border border-red-500/20': s?.onboardingStatus === 'REJECTED'
-          }">
-          {{ s?.onboardingStatus || 'ACTIVE' }}
-        </span>
+
         <div *ngIf="suppliers().length === 0" class="col-span-3 text-center py-12 bg-[#111111] border border-gray-800/40 rounded-2xl">
           <p class="text-gray-600">No suppliers registered yet.</p>
           <button (click)="showInviteModal.set(true)" class="text-teal-400 text-sm mt-2 hover:underline">Generate an invite link</button>

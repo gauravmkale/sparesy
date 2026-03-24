@@ -110,8 +110,8 @@ export class MfgComponentsComponent implements OnInit {
     loadAll() {
         this.isInitialLoading.set(true);
         this.compService.getAll().subscribe({
-            next: d => {
-                this.components.set(d || []);
+            next: (d:any) => {
+                this.components.set(Array.isArray(d) ? d: (d?.data || []));
                 this.isInitialLoading.set(false);
             },
             error: () => {
@@ -123,9 +123,17 @@ export class MfgComponentsComponent implements OnInit {
 
     searchByPart() {
         if (!this.searchTerm.trim()) return this.loadAll();
-        this.compService.search(this.searchTerm).subscribe({
-            next: d => this.components.set(Array.isArray(d) ? d : [d]),
+        this.isInitialLoading.set(true);
+        this.compService.search(this.searchTerm.trim()).subscribe({
+            next: (d  :any)=> {
+              const data = Array.isArray(d)
+                ? d
+                : (d?.data ? d.data : (d?[d] : []));
+              this.components.set(data);
+              this.isInitialLoading.set(false);
+              if (!d?.length) this.notif.error('No components found');},
             error: () => {
+                this.isInitialLoading.set(false);
                 this.components.set([]);
                 this.notif.error('Search failed');
             }

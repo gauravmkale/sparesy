@@ -83,15 +83,24 @@ import { forkJoin } from 'rxjs';
                     </div>
                 </td>
                 <td class="px-5 py-3">
-                  <div *ngIf="editingId() !== sc.id" class="text-gray-300">₹{{ sc.unitPrice }}</div>
-                  <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editPrice"
-                    class="bg-[#1a1a1a] border border-blue-500 text-white px-2 py-1 rounded-lg text-sm w-24" />
+                    <div *ngIf="editingId() !== sc.id" class="text-gray-300">₹{{ sc.unitPrice }}</div>
+                    <div *ngIf="editingId() === sc.id">
+                      <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editPrice" min="0.01"
+                        class="bg-[#1a1a1a] border border-blue-500 text-white px-2 py-1 rounded-lg text-sm w-24"
+                        [ngClass]="{'border-red-500': editPrice <= 0}" />
+                      <p *ngIf="editPrice <= 0" class="text-red-400 text-xs mt-1">Must be > 0</p>
+                    </div>
                 </td>
                 <td class="px-5 py-3">
-                  <div *ngIf="editingId() !== sc.id" class="text-gray-400">{{ sc.stockQuantity }}</div>
-                  <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editStock"
-                    class="bg-[#1a1a1a] border border-blue-500 text-white px-2 py-1 rounded-lg text-sm w-24" />
+                    <div *ngIf="editingId() !== sc.id" class="text-gray-400">{{ sc.stockQuantity }}</div>
+                    <div *ngIf="editingId() === sc.id">
+                      <input *ngIf="editingId() === sc.id" type="number" [(ngModel)]="editStock" min="0"
+                        class="bg-[#1a1a1a] border border-blue-500 text-white px-2 py-1 rounded-lg text-sm w-24"
+                        [ngClass]="{'border-red-500': editStock < 0}" />
+                      <p *ngIf="editStock < 0" class="text-red-400 text-xs mt-1">Cannot be negative</p>
+                    </div>
                 </td>
+
                 <td class="px-5 py-3 text-gray-400">{{ sc.leadTimeDays }} days</td>
                 <td class="px-5 py-3">
                   <div *ngIf="editingId() !== sc.id" class="flex gap-2">
@@ -202,6 +211,14 @@ export class SupCatalogComponent implements OnInit {
 
     saveEdit(id: number) {
         if (this.isLoading()) return;
+        if(this.editPrice<=0){
+          this.notif.error('Price must be greater than 0');
+          return;
+        }
+        if(this.editStock<0){
+          this.notif.error('Stock cannot be less than 0');
+          return;
+        }
         this.isLoading.set(true);
         
         // Nested updates for price and stock

@@ -149,6 +149,57 @@ import { catchError } from 'rxjs/operators';
           </div>
         </div>
 
+        <!-- Client Requests -->
+        <div class="bg-[#141414] border border-gray-800/60 rounded-xl mb-6">
+          <div class="px-5 py-4 border-b border-gray-800/60">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">
+              Client Requests
+            </h3>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-gray-500 text-xs uppercase tracking-wider">
+                  <th class="text-left px-5 py-3">Component</th>
+                  <th class="text-left px-5 py-3">Qty</th>
+                  <th class="text-left px-5 py-3">Target Price</th>
+                  <th class="text-left px-5 py-3">Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr *ngFor="let cr of clientRequests()" class="border-t border-gray-800/40">
+                  <td class="px-5 py-3 text-white">
+                    {{ cr.component?.name }}
+                  </td>
+
+                  <td class="px-5 py-3 text-gray-400">
+                    {{ cr.quantityNeeded }}
+                  </td>
+
+                  <td class="px-5 py-3 text-gray-300">
+                    {{ cr.targetPrice ? '₹' + cr.targetPrice : '—' }}
+                  </td>
+
+                  <td class="px-5 py-3">
+                    <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
+                      [ngClass]="getRequestStatusClass(cr.status)">
+                      {{ cr.status }}
+                    </span>
+                  </td>
+                </tr>
+
+                <tr *ngIf="clientRequests().length === 0">
+                  <td colspan="4" class="px-5 py-6 text-center text-gray-600">
+                    No client requests
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Send Request Modal -->
         <div *ngIf="showSendRequest()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showSendRequest.set(false)">
           <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
@@ -181,13 +232,15 @@ import { catchError } from 'rxjs/operators';
               <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Quantity Needed</label>
-                    <input type="number" [(ngModel)]="newRequest.quantityNeeded"
-                    class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                      <input type="number" [(ngModel)]="newRequest.quantityNeeded" min="1"
+                        class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                      <p *ngIf="newRequest.quantityNeeded < 1" class="text-red-400 text-xs mt-1">Quantity must be at least 1</p>
                 </div>
                 <div>
                     <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Target Price (Optional)</label>
-                    <input type="number" [(ngModel)]="newRequest.targetPrice"
-                    class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                    <input type="number" [(ngModel)]="newRequest.targetPrice" min="0"
+                        class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                      <p *ngIf="newRequest.targetPrice < 0" class="text-red-400 text-xs mt-1">Target price cannot be negative</p>
                 </div>
               </div>
               <div>
@@ -244,13 +297,15 @@ import { catchError } from 'rxjs/operators';
             <div class="space-y-3">
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Total Price (₹)</label>
-                <input type="number" [(ngModel)]="newQuote.totalPrice"
+                <input type="number" [(ngModel)]="newQuote.totalPrice" min="0.01"
                   class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                <p *ngIf="newQuote.totalPrice <= 0" class="text-red-400 text-xs mt-1">Total price must be greater than 0</p>
               </div>
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Lead Time (days)</label>
-                <input type="number" [(ngModel)]="newQuote.leadTimeDays"
+                <input type="number" [(ngModel)]="newQuote.leadTimeDays" min="1"
                   class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-teal-500 mt-1" />
+                <p *ngIf="newQuote.leadTimeDays < 1" class="text-red-400 text-xs mt-1">Lead time must be at least 1 day</p>
               </div>
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Notes</label>
@@ -279,6 +334,7 @@ export class MfgProjectsComponent implements OnInit {
     allComponents = signal<any[]>([]);
     supplierSpecificComponents = signal<any[]>([]);
     isLoading = signal<boolean>(false);
+    clientRequests = signal<any[]>([]);
     
     showSendRequest = signal<boolean>(false);
     showConfirmRequest = signal<boolean>(false);
@@ -333,9 +389,13 @@ export class MfgProjectsComponent implements OnInit {
     selectProject(p: any) {
         this.selectedProject.set(p);
         this.isLoading.set(true);
-        this.requestService.getByProject(p.id).subscribe({
-            next: (d: any[]) => { 
-                this.requests.set(d || []); 
+        forkJoin({
+          sourcing: this.requestService.getByProject(p.id),
+          client : this.requestService.getClientRequestsByProject(p.id)
+        }).subscribe({
+            next: (res: any) => { 
+                this.requests.set(res.sourcing  || []); 
+                this.clientRequests.set(res.client || []);
                 this.isLoading.set(false); 
                 this.calculateBaseCost();
             },
@@ -376,6 +436,14 @@ export class MfgProjectsComponent implements OnInit {
 
     executeSendRequest() {
         if (this.isLoading()) return;
+        if (this.newRequest.quantityNeeded < 1) {
+            this.notif.error('Quantity must be at least 1');
+            return;
+        }
+        if (this.newRequest.targetPrice !== null && this.newRequest.targetPrice < 0) {
+            this.notif.error('Target price cannot be negative');
+            return;
+        }
         this.isLoading.set(true);
 
         const baseData = {
@@ -455,6 +523,14 @@ export class MfgProjectsComponent implements OnInit {
 
     createQuote() {
         if (this.isLoading()) return;
+        if (this.newQuote.totalPrice <= 0) {
+            this.notif.error('Total price must be greater than 0');
+            return;
+        }
+        if (this.newQuote.leadTimeDays < 1) {
+            this.notif.error('Lead time must be at least 1 day');
+            return;
+        }
         this.isLoading.set(true);
         const data = { ...this.newQuote, projectId: this.selectedProject().id, lineItemsJson: '[]' };
         this.quoteService.createQuote(data).subscribe({

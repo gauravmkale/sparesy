@@ -30,16 +30,17 @@ import { NotificationService } from '../../../core/services/notification.service
           <div>
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Project Name</label>
             <input type="text" [(ngModel)]="newProject.name" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
-          </div>
-          <div>
+            Project Quantity
             <input type="number" [(ngModel)]="newProject.quantity" min="1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.quantity < 1" class="text-red-400 text-xs mt-1">Quantity must be at least 1</p>
-
+            Layer Count
             <input type="number" [(ngModel)]="newProject.layerCount" min="1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.layerCount < 1" class="text-red-400 text-xs mt-1">Layer count must be at least 1</p>
-
+          </div>
+          <div>
+            Board Thickness
             <input type="number" [(ngModel)]="newProject.boardThickness" min="0.1" step="0.1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.boardThickness < 0.1" class="text-red-400 text-xs mt-1">Thickness must be greater than 0</p>
@@ -93,7 +94,7 @@ import { NotificationService } from '../../../core/services/notification.service
       </div>
 
       <!-- Projects Table -->
-      <div *ngIf="!selectedProject()" class="bg-[#141414] border border-gray-800/60 rounded-xl">
+      <div class="bg-[#141414] border border-gray-800/60 rounded-xl">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>

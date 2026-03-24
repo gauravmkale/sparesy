@@ -65,4 +65,5 @@ public class CompanyController {
     public ResponseEntity<Company> getCompanyById(@PathVariable Long id) {
         return ResponseEntity.ok(companyService.getCompanyById(id));
     }
+
 }

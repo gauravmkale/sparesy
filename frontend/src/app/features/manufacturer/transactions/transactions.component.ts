@@ -29,7 +29,6 @@ import { TransactionService } from '../../../core/services/transaction.service';
               <tr class="text-gray-500 text-xs uppercase tracking-wider">
                 <th class="text-left px-5 py-3 font-medium">ID</th>
                 <th class="text-left px-5 py-3 font-medium">Project</th>
-                <th class="text-left px-5 py-3 font-medium">Component</th>
                 <th class="text-left px-5 py-3 font-medium">Type</th>
                 <th class="text-left px-5 py-3 font-medium">Amount</th>
                 <th class="text-left px-5 py-3 font-medium">Date</th>
@@ -39,7 +38,6 @@ import { TransactionService } from '../../../core/services/transaction.service';
               <tr *ngFor="let t of transactions()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition">
                 <td class="px-5 py-3 text-gray-500">#{{ t.id }}</td>
                 <td class="px-5 py-3 text-white">{{ t.project?.name || '—' }}</td>
-                <td class="px-5 py-3 text-gray-400">{{ t.component?.name || '—' }}</td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
                     [ngClass]="t.type === 'MANUFACTURER_REVENUE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'">

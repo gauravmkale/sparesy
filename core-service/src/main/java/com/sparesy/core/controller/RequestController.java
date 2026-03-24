@@ -47,6 +47,12 @@ public class RequestController {
         return ResponseEntity.ok(requestService.getRequestsByProject(projectId));
     }
 
+    @GetMapping("/project/{projectId}/client")
+    public ResponseEntity<List<Request>> getClientRequestsByProject(@PathVariable Long projectId) {
+        System.out.println("controller hit");
+        return ResponseEntity.ok(requestService.getClientVisibleRequests(projectId));
+    }
+
     // GET /api/requests/my
     // Supplier views all requests sent to them
     // supplierId extracted from JWT via CompanyContext

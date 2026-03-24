@@ -93,8 +93,9 @@ import { NotificationService } from '../../../core/services/notification.service
             <div>
               <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Your Quoted Price (₹)</label>
               <div class="flex gap-2 items-center">
-                <input type="number" [(ngModel)]="quoteData.quotedPrice"
+                <input type="number" [(ngModel)]="quoteData.quotedPrice" min="0.01"
                   class="flex-1 bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-blue-500 mt-1" />
+                <p *ngIf="quoteData.quotedPrice <= 0" class="text-red-400 text-xs mt-1">Price must be greater than 0</p>
                 <button *ngIf="quotingRequest()?.targetPrice" (click)="useTargetPrice()" 
                     class="mt-1 px-3 py-2 bg-teal-500/10 text-teal-400 text-xs font-semibold rounded-xl hover:bg-teal-500/20 transition">
                     Use Target
@@ -158,6 +159,11 @@ export class SupRequestsComponent implements OnInit {
       }
     submitQuote() {
         if (this.isLoading()) return;
+        if (this.isLoading()) return;
+        if (!this.quoteData.quotedPrice || this.quoteData.quotedPrice <= 0) {
+            this.notif.error('Please enter a valid price greater than 0');
+            return;
+        }
         this.isLoading.set(true);
         
         const delivery = this.quoteData.deliveryDate 

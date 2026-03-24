@@ -20,6 +20,10 @@ export class RequestService {
         return this.http.get<any[]>(`${this.api}/project/${projectId}`);
     }
 
+    getClientRequestsByProject(projectId: number){
+        return this.http.get<any[]>(`${this.api}/project/${projectId}/client`);
+    }
+    
     getMyRequests(): Observable<any[]> {
         return this.http.get<any[]>(`${this.api}/my`);
     }
