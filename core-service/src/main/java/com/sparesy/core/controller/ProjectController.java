@@ -1,7 +1,7 @@
 package com.sparesy.core.controller;
 
 import com.sparesy.core.dto.request.ProjectRequestDTO;
-import com.sparesy.core.entity.Project;
+import com.sparesy.core.dto.response.ProjectResponseDTO;
 import com.sparesy.core.enums.ProjectStatus;
 import com.sparesy.core.security.CompanyContext;
 import com.sparesy.core.service.ProjectService;
@@ -29,39 +29,39 @@ public class ProjectController {
     // Client submits a new PCB project
     // companyId is extracted from JWT inside ProjectService via CompanyContext
     @PostMapping
-    public ResponseEntity<Project> submitProject(@Valid @RequestBody ProjectRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.submitProject(dto));
+    public ResponseEntity<ProjectResponseDTO> submitProject(@Valid @RequestBody ProjectRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.toProjectResponseDTO(projectService.submitProject(dto)));
     }
 
     // GET /api/projects
     // Manufacturer views all projects, newest first
     @GetMapping
-    public ResponseEntity<List<Project>> getAllProjects() {
-        return ResponseEntity.ok(projectService.getAllProjects());
+    public ResponseEntity<List<ProjectResponseDTO>> getAllProjects() {
+        return ResponseEntity.ok(projectService.toProjectResponseDTOs(projectService.getAllProjects()));
     }
 
     // GET /api/projects/my
     // Client views only their own projects
     // companyId comes from JWT via CompanyContext
     @GetMapping("/my")
-    public ResponseEntity<List<Project>> getMyProjects() {
+    public ResponseEntity<List<ProjectResponseDTO>> getMyProjects() {
         Long companyId = CompanyContext.getCurrentCompanyId();
-        return ResponseEntity.ok(projectService.getProjectsByClient(companyId));
+        return ResponseEntity.ok(projectService.toProjectResponseDTOs(projectService.getProjectsByClient(companyId)));
     }
 
     // GET /api/projects/{id}
     // Anyone with access fetches a single project by id
     @GetMapping("/{id}")
-    public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
-        return ResponseEntity.ok(projectService.getProjectById(id));
+    public ResponseEntity<ProjectResponseDTO> getProjectById(@PathVariable Long id) {
+        return ResponseEntity.ok(projectService.toProjectResponseDTO(projectService.getProjectById(id)));
     }
 
     // PUT /api/projects/{id}/status
     // Manufacturer or workflow updates a project's status
     // Status is passed as a request param e.g. ?status=SOURCING
     @PutMapping("/{id}/status")
-    public ResponseEntity<Project> updateStatus(@PathVariable Long id,
+    public ResponseEntity<ProjectResponseDTO> updateStatus(@PathVariable Long id,
                                                 @RequestParam ProjectStatus status) {
-        return ResponseEntity.ok(projectService.updateStatus(id, status));
+        return ResponseEntity.ok(projectService.toProjectResponseDTO(projectService.updateStatus(id, status)));
     }
 }

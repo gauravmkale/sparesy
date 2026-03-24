@@ -1,11 +1,14 @@
 package com.sparesy.core.service;
 
+import com.sparesy.core.dto.response.InventoryResponseDTO;
 import com.sparesy.core.entity.Component;
 import com.sparesy.core.entity.Inventory;
 import com.sparesy.core.repository.InventoryRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class InventoryService {
@@ -67,5 +70,29 @@ public class InventoryService {
     // Returns all inventory records where stock is below reorder threshold
     public List<Inventory> getLowStockAlerts() {
         return inventoryRepository.findByQuantityOnHandLessThan(10);
+    }
+
+    public InventoryResponseDTO toInventoryResponseDTO(Inventory inventory) {
+        int available = inventory.getQuantityOnHand() - inventory.getQuantityReserved();
+        boolean isLowStock = inventory.getQuantityOnHand() < inventory.getReorderThreshold();
+        
+        return InventoryResponseDTO.builder()
+                .id(inventory.getId())
+                .componentId(inventory.getComponent().getId())
+                .componentName(inventory.getComponent().getName())
+                .partNumber(inventory.getComponent().getPartNumber())
+                .quantityOnHand(inventory.getQuantityOnHand())
+                .quantityReserved(inventory.getQuantityReserved())
+                .availableQuantity(available)
+                .reorderThreshold(inventory.getReorderThreshold())
+                .isLowStock(isLowStock)
+                .lastUpdated(inventory.getLastUpdated())
+                .build();
+    }
+
+    public List<InventoryResponseDTO> toInventoryResponseDTOs(List<Inventory> inventories) {
+        return inventories.stream()
+                .map(this::toInventoryResponseDTO)
+                .collect(Collectors.toList());
     }
 }

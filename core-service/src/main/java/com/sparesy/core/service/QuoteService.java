@@ -1,6 +1,7 @@
 package com.sparesy.core.service;
 
 import com.sparesy.core.dto.request.QuoteRequestDTO;
+import com.sparesy.core.dto.response.QuoteResponseDTO;
 import com.sparesy.core.entity.Project;
 import com.sparesy.core.entity.Quote;
 import com.sparesy.core.enums.QuoteStatus;
@@ -14,6 +15,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class QuoteService {
@@ -102,5 +104,28 @@ public class QuoteService {
     // Manufacturer views all sent quotes
     public List<Quote> getSentQuotes() {
         return quoteRepository.findByStatus(QuoteStatus.SENT);
+    }
+
+    // DTO Conversion Methods
+    public QuoteResponseDTO toQuoteResponseDTO(Quote quote) {
+        return QuoteResponseDTO.builder()
+                .id(quote.getId())
+                .projectId(quote.getProject().getId())
+                .projectName(quote.getProject().getName())
+                .totalPrice(quote.getTotalPrice())
+                .leadTimeDays(quote.getLeadTimeDays())
+                .lineItemsJson(quote.getLineItemsJson())
+                .status(quote.getStatus())
+                .notes(quote.getNotes())
+                .createdAt(quote.getCreatedAt())
+                .sentAt(quote.getSentAt())
+                .clientResponseAt(quote.getClientResponseAt())
+                .build();
+    }
+
+    public List<QuoteResponseDTO> toQuoteResponseDTOs(List<Quote> quotes) {
+        return quotes.stream()
+                .map(this::toQuoteResponseDTO)
+                .collect(Collectors.toList());
     }
 }

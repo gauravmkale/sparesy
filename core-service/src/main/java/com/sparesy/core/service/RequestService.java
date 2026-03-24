@@ -1,6 +1,7 @@
 package com.sparesy.core.service;
 
 import com.sparesy.core.dto.request.RequestRequestDTO;
+import com.sparesy.core.dto.response.RequestResponseDTO;
 import com.sparesy.core.entity.Component;
 import com.sparesy.core.entity.Company;
 import com.sparesy.core.entity.Project;
@@ -16,11 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.access.method.P;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class RequestService {
@@ -143,5 +144,31 @@ public class RequestService {
 
     public boolean allRequestsApproved(Long projectId) {
         return !requestRepository.existsByProjectIdAndStatusNot(projectId, RequestStatus.APPROVED);
+    }
+
+    // DTO Conversion Methods
+    public RequestResponseDTO toRequestResponseDTO(Request request) {
+        return RequestResponseDTO.builder()
+                .id(request.getId())
+                .projectId(request.getProject().getId())
+                .projectName(request.getProject().getName())
+                .supplierCompanyId(request.getSupplier().getId())
+                .supplierName(request.getSupplier().getName())
+                .componentId(request.getComponent().getId())
+                .componentName(request.getComponent().getName())
+                .partNumber(request.getComponent().getPartNumber())
+                .quantityNeeded(request.getQuantityNeeded())
+                .status(request.getStatus())
+                .quotedPrice(request.getQuotedPrice())
+                .quotedDelivery(request.getQuotedDelivery())
+                .createdAt(request.getCreatedAt())
+                .quotedAt(request.getQuotedAt())
+                .build();
+    }
+
+    public List<RequestResponseDTO> toRequestResponseDTOs(List<Request> requests) {
+        return requests.stream()
+                .map(this::toRequestResponseDTO)
+                .collect(Collectors.toList());
     }
 }

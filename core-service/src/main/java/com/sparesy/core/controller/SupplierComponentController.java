@@ -1,7 +1,7 @@
 package com.sparesy.core.controller;
 
 import com.sparesy.core.dto.request.SupplierComponentRequestDTO;
-import com.sparesy.core.entity.SupplierComponent;
+import com.sparesy.core.dto.response.SupplierComponentResponseDTO;
 import com.sparesy.core.security.CompanyContext;
 import com.sparesy.core.service.SupplierComponentService;
 import jakarta.validation.Valid;
@@ -23,34 +23,34 @@ public class SupplierComponentController {
     }
 
     @PostMapping
-    public ResponseEntity<SupplierComponent> addToSupplierCatalog(
+    public ResponseEntity<SupplierComponentResponseDTO> addToSupplierCatalog(
             @Valid @RequestBody SupplierComponentRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(supplierComponentService.addToSupplierCatalog(dto));
+                .body(supplierComponentService.toSupplierComponentResponseDTO(supplierComponentService.addToSupplierCatalog(dto)));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<SupplierComponent>> getMyCatalog() {
+    public ResponseEntity<List<SupplierComponentResponseDTO>> getMyCatalog() {
         Long supplierId = CompanyContext.getCurrentCompanyId();
-        return ResponseEntity.ok(supplierComponentService.getBySupplier(supplierId));
+        return ResponseEntity.ok(supplierComponentService.toSupplierComponentResponseDTOs(supplierComponentService.getBySupplier(supplierId)));
     }
 
     @GetMapping("/{supplierId}")
-    public ResponseEntity<List<SupplierComponent>> getSupplierCatalog(
+    public ResponseEntity<List<SupplierComponentResponseDTO>> getSupplierCatalog(
             @PathVariable Long supplierId) {
-        return ResponseEntity.ok(supplierComponentService.getActiveBySupplier(supplierId));
+        return ResponseEntity.ok(supplierComponentService.toSupplierComponentResponseDTOs(supplierComponentService.getActiveBySupplier(supplierId)));
     }
 
     @PutMapping("/{id}/stock")
-    public ResponseEntity<SupplierComponent> updateStock(@PathVariable Long id,
+    public ResponseEntity<SupplierComponentResponseDTO> updateStock(@PathVariable Long id,
                                                           @RequestParam Integer quantity) {
-        return ResponseEntity.ok(supplierComponentService.updateStock(id, quantity));
+        return ResponseEntity.ok(supplierComponentService.toSupplierComponentResponseDTO(supplierComponentService.updateStock(id, quantity)));
     }
 
     @PutMapping("/{id}/price")
-    public ResponseEntity<SupplierComponent> updatePrice(@PathVariable Long id,
+    public ResponseEntity<SupplierComponentResponseDTO> updatePrice(@PathVariable Long id,
                                                           @RequestParam BigDecimal price) {
-        return ResponseEntity.ok(supplierComponentService.updatePrice(id, price));
+        return ResponseEntity.ok(supplierComponentService.toSupplierComponentResponseDTO(supplierComponentService.updatePrice(id, price)));
     }
 
     // Using PUT for deletion to bypass potential 405 Method Not Supported issues with DELETE in some environments

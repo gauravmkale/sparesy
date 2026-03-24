@@ -1,6 +1,7 @@
 package com.sparesy.core.service;
 
 import com.sparesy.core.dto.request.ProjectRequestDTO;
+import com.sparesy.core.dto.response.ProjectResponseDTO;
 import com.sparesy.core.entity.Company;
 import com.sparesy.core.entity.Project;
 import com.sparesy.core.enums.ProjectStatus;
@@ -13,6 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProjectService {
@@ -79,5 +81,30 @@ public class ProjectService {
         // Saves a project entity directly — used by FileController after setting file paths
     public Project saveProject(Project project) {
         return projectRepository.save(project);
+    }
+
+    // DTO Conversion Methods
+    public ProjectResponseDTO toProjectResponseDTO(Project project) {
+        return ProjectResponseDTO.builder()
+                .id(project.getId())
+                .name(project.getName())
+                .quantity(project.getQuantity())
+                .layerCount(project.getLayerCount())
+                .boardThickness(project.getBoardThickness())
+                .surfaceFinish(project.getSurfaceFinish())
+                .status(project.getStatus())
+                .clientCompanyId(project.getClient().getId())
+                .clientName(project.getClient().getName())
+                .gerberFilePath(project.getGerberFilePath())
+                .bomFilePath(project.getBomFilePath())
+                .expectedDelivery(project.getExpectedDelivery())
+                .submittedAt(project.getSubmittedAt())
+                .build();
+    }
+
+    public List<ProjectResponseDTO> toProjectResponseDTOs(List<Project> projects) {
+        return projects.stream()
+                .map(this::toProjectResponseDTO)
+                .collect(Collectors.toList());
     }
 }

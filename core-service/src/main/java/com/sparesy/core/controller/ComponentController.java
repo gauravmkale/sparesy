@@ -1,7 +1,7 @@
 package com.sparesy.core.controller;
 
 import com.sparesy.core.dto.request.ComponentRequestDTO;
-import com.sparesy.core.entity.Component;
+import com.sparesy.core.dto.response.ComponentResponseDTO;
 import com.sparesy.core.service.ComponentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,37 +26,37 @@ public class ComponentController {
     // POST /api/components
     // Manufacturer adds a new component to the master catalog
     @PostMapping
-    public ResponseEntity<Component> addComponent(@Valid @RequestBody ComponentRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(componentService.addComponent(dto));
+    public ResponseEntity<ComponentResponseDTO> addComponent(@Valid @RequestBody ComponentRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(componentService.toComponentResponseDTO(componentService.addComponent(dto)));
     }
 
     // GET /api/components
     // Returns all components in the catalog
     @GetMapping
-    public ResponseEntity<List<Component>> getAllComponents() {
-        return ResponseEntity.ok(componentService.getAllComponents());
+    public ResponseEntity<List<ComponentResponseDTO>> getAllComponents() {
+        return ResponseEntity.ok(componentService.toComponentResponseDTOs(componentService.getAllComponents()));
     }
 
     // GET /api/components/{id}
     // Fetch a single component by id
     @GetMapping("/{id}")
-    public ResponseEntity<Component> getComponentById(@PathVariable Long id) {
-        return ResponseEntity.ok(componentService.getComponentById(id));
+    public ResponseEntity<ComponentResponseDTO> getComponentById(@PathVariable Long id) {
+        return ResponseEntity.ok(componentService.toComponentResponseDTO(componentService.getComponentById(id)));
     }
 
     // GET /api/components/search?partNumber=ABC123
     // Search by exact part number — used during BOM matching
 
     @GetMapping("/search")
-    public ResponseEntity<List<Component>> searchByPartNumber(@RequestParam String partNumber){
-        return ResponseEntity.ok(componentService.searchByKeyword(partNumber));
+    public ResponseEntity<List<ComponentResponseDTO>> searchByPartNumber(@RequestParam String partNumber){
+        return ResponseEntity.ok(componentService.toComponentResponseDTOs(componentService.searchByKeyword(partNumber)));
     }
 
     // GET /api/components/category?category=Resistors
     // Filter components by category
     @GetMapping("/category")
-    public ResponseEntity<List<Component>> getByCategory(@RequestParam String category) {
-        return ResponseEntity.ok(componentService.getByCategory(category));
+    public ResponseEntity<List<ComponentResponseDTO>> getByCategory(@RequestParam String category) {
+        return ResponseEntity.ok(componentService.toComponentResponseDTOs(componentService.getByCategory(category)));
     }
 
 }

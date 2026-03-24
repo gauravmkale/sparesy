@@ -1,5 +1,6 @@
 package com.sparesy.core.service;
 
+import com.sparesy.core.dto.response.ProductionOrderResponseDTO;
 import com.sparesy.core.entity.ProductionOrder;
 import com.sparesy.core.entity.Project;
 import com.sparesy.core.enums.ProductionStage;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductionService {
@@ -83,5 +85,26 @@ public class ProductionService {
     // Manufacturer views all active production orders
     public List<ProductionOrder> getAllActive() {
         return productionOrderRepository.findAll();
+    }
+
+    public ProductionOrderResponseDTO toProductionOrderResponseDTO(ProductionOrder order) {
+        return ProductionOrderResponseDTO.builder()
+                .id(order.getId())
+                .projectId(order.getProject().getId())
+                .projectName(order.getProject().getName())
+                .currentStage(order.getCurrentStage())
+                .stageHistoryJson(order.getStageHistoryJson())
+                .plannedStart(order.getPlannedStart())
+                .plannedEnd(order.getPlannedEnd())
+                .actualStart(order.getActualStart())
+                .actualEnd(order.getActualEnd())
+                .createdAt(order.getCreatedAt())
+                .build();
+    }
+
+    public List<ProductionOrderResponseDTO> toProductionOrderResponseDTOs(List<ProductionOrder> orders) {
+        return orders.stream()
+                .map(this::toProductionOrderResponseDTO)
+                .collect(Collectors.toList());
     }
 }

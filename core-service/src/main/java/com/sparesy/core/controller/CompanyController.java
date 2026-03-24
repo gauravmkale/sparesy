@@ -1,6 +1,6 @@
 package com.sparesy.core.controller;
 
-import com.sparesy.core.entity.Company;
+import com.sparesy.core.dto.response.CompanyResponseDTO;
 import com.sparesy.core.service.CompanyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,28 +18,28 @@ public class CompanyController {
     }
 
     @GetMapping("/clients")
-    public ResponseEntity<List<Company>> getAllClients() {
-        return ResponseEntity.ok(companyService.getAllClients());
+    public ResponseEntity<List<CompanyResponseDTO>> getAllClients() {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTOs(companyService.getAllClients()));
     }
 
     @GetMapping("/Approvedclients")
-    public ResponseEntity<List<Company>> getAllApprovedClients() {
-        return ResponseEntity.ok(companyService.getAllApprovedClients());
+    public ResponseEntity<List<CompanyResponseDTO>> getAllApprovedClients() {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTOs(companyService.getAllApprovedClients()));
     }
 
     @GetMapping("/suppliers")
-    public ResponseEntity<List<Company>> getAllSuppliers() {
-        return ResponseEntity.ok(companyService.getAllSuppliers());
+    public ResponseEntity<List<CompanyResponseDTO>> getAllSuppliers() {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTOs(companyService.getAllSuppliers()));
     }
 
     @GetMapping("/Approvedsuppliers")
-    public ResponseEntity<List<Company>> getAllApprovedSuppliers() {
-        return ResponseEntity.ok(companyService.getAllApprovedSuppliers());
+    public ResponseEntity<List<CompanyResponseDTO>> getAllApprovedSuppliers() {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTOs(companyService.getAllApprovedSuppliers()));
     }
 
     @GetMapping("/pending")
-    public ResponseEntity<List<Company>> getPendingCompanies() {
-        return ResponseEntity.ok(companyService.getPendingCompanies());
+    public ResponseEntity<List<CompanyResponseDTO>> getPendingCompanies() {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTOs(companyService.getPendingCompanies()));
     }
 
     @PutMapping("/{id}/approve")
@@ -62,8 +62,8 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Company> getCompanyById(@PathVariable Long id) {
-        return ResponseEntity.ok(companyService.getCompanyById(id));
+    public ResponseEntity<CompanyResponseDTO> getCompanyById(@PathVariable Long id) {
+        return ResponseEntity.ok(companyService.toCompanyResponseDTO(companyService.getCompanyById(id)));
     }
 
 }

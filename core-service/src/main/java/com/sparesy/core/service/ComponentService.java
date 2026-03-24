@@ -1,11 +1,13 @@
 package com.sparesy.core.service;
 
 import com.sparesy.core.dto.request.ComponentRequestDTO;
+import com.sparesy.core.dto.response.ComponentResponseDTO;
 import com.sparesy.core.entity.Component;
 import com.sparesy.core.repository.ComponentRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ComponentService {
@@ -59,5 +61,22 @@ public class ComponentService {
 
     public List<Component> searchByKeyword(String keyword){
         return componentRepository.searchByKeyword(keyword);
+    }
+
+    // DTO Conversion Methods
+    public ComponentResponseDTO toComponentResponseDTO(Component component) {
+        return ComponentResponseDTO.builder()
+                .id(component.getId())
+                .name(component.getName())
+                .partNumber(component.getPartNumber())
+                .category(component.getCategory())
+                .description(component.getDescription())
+                .build();
+    }
+
+    public List<ComponentResponseDTO> toComponentResponseDTOs(List<Component> components) {
+        return components.stream()
+                .map(this::toComponentResponseDTO)
+                .collect(Collectors.toList());
     }
 }

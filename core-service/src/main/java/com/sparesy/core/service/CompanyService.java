@@ -1,5 +1,6 @@
 package com.sparesy.core.service;
 
+import com.sparesy.core.dto.response.CompanyResponseDTO;
 import com.sparesy.core.entity.Company;
 import com.sparesy.core.enums.CompanyType;
 import com.sparesy.core.enums.OnboardingStatus;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class CompanyService {
@@ -68,5 +70,25 @@ public class CompanyService {
     public Company getCompanyById(Long id) {
         return companyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));
+    }
+
+    // DTO Conversion Methods
+    public CompanyResponseDTO toCompanyResponseDTO(Company company) {
+        return CompanyResponseDTO.builder()
+                .id(company.getId())
+                .name(company.getName())
+                .email(company.getEmail())
+                .type(company.getType())
+                .contactPersonName(company.getContactPersonName())
+                .contactNumber(company.getContactNumber())
+                .address(company.getAddress())
+                .isActive(company.getIsActive())
+                .build();
+    }
+
+    public List<CompanyResponseDTO> toCompanyResponseDTOs(List<Company> companies) {
+        return companies.stream()
+                .map(this::toCompanyResponseDTO)
+                .collect(Collectors.toList());
     }
 }

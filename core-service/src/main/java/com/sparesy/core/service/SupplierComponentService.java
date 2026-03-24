@@ -1,6 +1,7 @@
 package com.sparesy.core.service;
 
 import com.sparesy.core.dto.request.SupplierComponentRequestDTO;
+import com.sparesy.core.dto.response.SupplierComponentResponseDTO;
 import com.sparesy.core.entity.Component;
 import com.sparesy.core.entity.Company;
 import com.sparesy.core.entity.SupplierComponent;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SupplierComponentService {
@@ -101,5 +103,27 @@ public class SupplierComponentService {
         SupplierComponent sc = getById(id);
         sc.setUnitPrice(price);
         return supplierComponentRepository.save(sc);
+    }
+
+    // DTO Conversion Methods
+    public SupplierComponentResponseDTO toSupplierComponentResponseDTO(SupplierComponent sc) {
+        return SupplierComponentResponseDTO.builder()
+                .id(sc.getId())
+                .supplierId(sc.getSupplier().getId())
+                .supplierName(sc.getSupplier().getName())
+                .componentId(sc.getComponent().getId())
+                .componentName(sc.getComponent().getName())
+                .partNumber(sc.getComponent().getPartNumber())
+                .unitPrice(sc.getUnitPrice())
+                .stockQuantity(sc.getStockQuantity())
+                .leadTimeDays(sc.getLeadTimeDays())
+                .isActive(sc.getIsActive())
+                .build();
+    }
+
+    public List<SupplierComponentResponseDTO> toSupplierComponentResponseDTOs(List<SupplierComponent> scs) {
+        return scs.stream()
+                .map(this::toSupplierComponentResponseDTO)
+                .collect(Collectors.toList());
     }
 }
