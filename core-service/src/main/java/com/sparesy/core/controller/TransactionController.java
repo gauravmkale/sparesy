@@ -1,5 +1,7 @@
 package com.sparesy.core.controller;
 
+import com.sparesy.core.dto.response.ClientFinancialsResponseDTO;
+import com.sparesy.core.dto.response.ProjectFinancialsResponseDTO;
 import com.sparesy.core.entity.Transaction;
 import com.sparesy.core.enums.TransactionType;
 import com.sparesy.core.security.CompanyContext;
@@ -24,21 +26,31 @@ public class TransactionController {
     }
 
     // GET /api/transactions/my
-    // Any portal views their own transaction history
-    // companyId extracted from JWT via CompanyContext
     @GetMapping("/my")
     public ResponseEntity<List<Transaction>> getMyTransactions() {
         Long companyId = CompanyContext.getCurrentCompanyId();
         return ResponseEntity.ok(transactionService.getByCompany(companyId));
     }
 
-    // GET /api/transactions/revenue?type=MANUFACTURER_REVENUE
-    // Returns total revenue for the logged-in company filtered by transaction type
-    // Manufacturer uses MANUFACTURER_REVENUE, supplier uses SUPPLIER_REVENUE,
-    // client uses CLIENT_COST
+    // GET /api/transactions/revenue
     @GetMapping("/revenue")
     public ResponseEntity<BigDecimal> getTotalRevenue(@RequestParam TransactionType type) {
         Long companyId = CompanyContext.getCurrentCompanyId();
         return ResponseEntity.ok(transactionService.getTotalRevenue(companyId, type));
+    }
+
+    @GetMapping("/project/{id}/summary")
+    public ResponseEntity<ProjectFinancialsResponseDTO> getProjectSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(transactionService.getProjectFinancials(id));
+    }
+
+    @GetMapping("/client/{id}/summary")
+    public ResponseEntity<ClientFinancialsResponseDTO> getClientSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(transactionService.getClientFinancials(id));
+    }
+
+    @GetMapping("/clients/summaries")
+    public ResponseEntity<List<ClientFinancialsResponseDTO>> getClientSummaries() {
+        return ResponseEntity.ok(transactionService.getAllClientSummaries());
     }
 }

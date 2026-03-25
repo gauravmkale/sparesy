@@ -16,4 +16,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // Spring Data can't infer a SUM from a method name so we write it explicitly in JPQL. 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.company.id = :companyId AND t.type = :type")
     BigDecimal sumAmountByCompanyIdAndType(Long companyId, TransactionType type);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.project.id = :projectId AND t.type = :type")
+    BigDecimal sumAmountByProjectIdAndType(Long projectId, TransactionType type);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.project.client.id = :clientId AND t.type = :type")
+    BigDecimal sumAmountByClientIdAndType(Long clientId, TransactionType type);
 }

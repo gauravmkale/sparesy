@@ -2,14 +2,15 @@ import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyService } from '../../../core/services/company.service';
+import { TransactionService } from '../../../core/services/transaction.service';
 import { HttpClient } from '@angular/common/http';
 import { NotificationService } from '../../../core/services/notification.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
     selector: 'app-mfg-clients',
     standalone: true,
     imports: [CommonModule, FormsModule],
-    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div>
       <div class="flex items-center justify-between mb-6">
@@ -65,9 +66,10 @@ import { NotificationService } from '../../../core/services/notification.service
       </div>
 
       <!-- Clients Grid -->
-      <div class="grid grid-cols-3 gap-4">
-        <div *ngFor="let c of clients()"
-          class="bg-[#141414] border border-gray-800/60 rounded-xl p-5 hover:border-indigo-500/30 transition-colors relative group">
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div *ngFor="let c of clients()" (click)="selectClient(c)"
+          class="bg-[#141414] border rounded-xl p-5 cursor-pointer transition-all duration-150 hover:border-indigo-500/50 relative group"
+          [ngClass]="{ 'border-indigo-500 bg-indigo-500/5 shadow-[0_0_20px_rgba(99,102,241,0.1)]': selectedClient()?.id === c.id, 'border-gray-800/60': selectedClient()?.id !== c.id }">
           
           <button (click)="confirmDelete($event, c)" 
             class="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all">
@@ -91,13 +93,88 @@ import { NotificationService } from '../../../core/services/notification.service
               {{ c?.onboardingStatus || 'ACTIVE' }}
             </span>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-800/40 text-xs text-gray-500 line-clamp-2">
-            {{ c?.address }}
+          <div class="mt-4 pt-3 border-t border-gray-800/40 flex items-center justify-between">
+            <div class="flex flex-col gap-0.5">
+               <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Revenue</span>
+               <span class="text-xs font-bold text-emerald-400">₹{{ (c.summary?.totalRevenue || 0) | number }}</span>
+            </div>
+            <div class="flex flex-col items-end gap-0.5">
+               <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Profit</span>
+               <span class="text-xs font-bold text-indigo-400">₹{{ (c.summary?.totalProfit || 0) | number }}</span>
+            </div>
           </div>
         </div>
-        <div *ngIf="clients().length === 0" class="col-span-3 text-center py-12 bg-[#111111] border border-gray-800/40 rounded-2xl">
-          <p class="text-gray-600">No clients registered yet.</p>
-          <button (click)="showInviteModal.set(true)" class="text-indigo-400 text-sm mt-2 hover:underline">Generate an invite link</button>
+      </div>
+
+      <!-- Detail View (Below Grid) -->
+      <div *ngIf="selectedClient()" class="mt-8">
+        <div class="bg-[#141414] border border-gray-800/60 rounded-xl overflow-hidden shadow-2xl">
+          <div class="px-6 py-4 border-b border-gray-800/60 flex items-center justify-between bg-white/[0.01]">
+             <div class="flex items-center gap-4">
+               <h3 class="text-sm font-semibold text-white uppercase tracking-wider">{{ selectedClient()?.name }} — Summary</h3>
+               <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[10px] border border-indigo-500/20 font-bold uppercase tracking-wider">
+                  {{ selectedClient()?.onboardingStatus }}
+               </span>
+             </div>
+             <button (click)="selectedClient.set(null)" class="text-gray-500 hover:text-white text-xs transition p-1">Close Detail ✕</button>
+          </div>
+          
+          <div class="p-6 grid grid-cols-4 gap-6">
+            <div class="col-span-1 space-y-4">
+               <div>
+                 <p class="text-xs text-gray-500 uppercase font-medium">Contact Person</p>
+                 <p class="text-white text-sm font-medium">{{ selectedClient()?.contactPersonName }}</p>
+               </div>
+               <div>
+                 <p class="text-xs text-gray-500 uppercase font-medium">Email</p>
+                 <p class="text-white text-sm truncate">{{ selectedClient()?.email }}</p>
+               </div>
+               <div>
+                 <p class="text-xs text-gray-500 uppercase font-medium">Address</p>
+                 <p class="text-gray-400 text-xs leading-relaxed">{{ selectedClient()?.address }}</p>
+               </div>
+            </div>
+
+            <div class="col-span-3 space-y-6 border-l border-gray-800/60 pl-6">
+               <div class="grid grid-cols-2 gap-4">
+                 <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4">
+                    <p class="text-[10px] text-emerald-500/60 uppercase font-bold tracking-widest">Total Revenue</p>
+                    <p class="text-2xl font-bold text-emerald-400 mt-1">₹{{ (clientSummary()?.totalRevenue || 0) | number }}</p>
+                 </div>
+                 <div class="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4">
+                    <p class="text-[10px] text-indigo-500/60 uppercase font-bold tracking-widest">Net Margin (Profit)</p>
+                    <p class="text-2xl font-bold text-indigo-400 mt-1">₹{{ (clientSummary()?.totalProfit || 0) | number }}</p>
+                 </div>
+               </div>
+
+               <div>
+                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Project History</p>
+                 <div class="bg-black/20 rounded-xl border border-gray-800/40 overflow-hidden">
+                    <table class="w-full text-xs">
+                      <thead>
+                        <tr class="text-gray-600 border-b border-gray-800/60">
+                           <th class="text-left px-4 py-3 font-medium">Project</th>
+                           <th class="text-left px-4 py-3 font-medium">Status</th>
+                           <th class="text-right px-4 py-3 font-medium">Revenue</th>
+                           <th class="text-right px-4 py-3 font-medium">Profit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let p of clientSummary()?.projects" class="border-t border-gray-800/20 hover:bg-white/[0.01]">
+                           <td class="px-4 py-2.5 text-gray-200">{{ p.projectName }}</td>
+                           <td class="px-4 py-2.5 text-gray-500">{{ p.status }}</td>
+                           <td class="px-4 py-2.5 text-right text-gray-400">₹{{ (p.revenue || 0) | number }}</td>
+                           <td class="px-4 py-2.5 text-right text-indigo-400 font-semibold">₹{{ (p.profit || 0) | number }}</td>
+                        </tr>
+                        <tr *ngIf="!clientSummary()?.projects?.length">
+                           <td colspan="4" class="px-4 py-6 text-center text-gray-600 italic">No projects recorded.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                 </div>
+               </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -125,8 +202,11 @@ export class MfgClientsComponent implements OnInit {
     copied = signal<boolean>(false);
     isLoading = signal<boolean>(false);
     companyToDelete = signal<any>(null);
-    
+    selectedClient = signal<any>(null);
+    clientSummary = signal<any>(null);
     inviteEmail = '';
+
+    private txnService = inject(TransactionService);
 
     private companyService = inject(CompanyService);
     private http = inject(HttpClient);
@@ -135,9 +215,30 @@ export class MfgClientsComponent implements OnInit {
     ngOnInit() { this.load(); }
 
     load() {
-        this.companyService.getApprovedClients().subscribe({
-            next: d => this.clients.set(d || []),
+        forkJoin({
+            clients: this.companyService.getApprovedClients(),
+            summaries: this.txnService.getClientSummaries()
+        }).subscribe({
+            next: ({ clients, summaries }) => {
+                const combined = clients.map(c => ({
+                    ...c,
+                    summary: summaries.find(s => s.clientId === c.id)
+                }));
+                this.clients.set(combined);
+            },
             error: () => { }
+        });
+    }
+
+    selectClient(c: any) {
+        this.selectedClient.set(c);
+        this.isLoading.set(true);
+        this.txnService.getClientSummary(c.id).subscribe({
+            next: (summary: any) => {
+                this.clientSummary.set(summary);
+                this.isLoading.set(false);
+            },
+            error: () => this.isLoading.set(false)
         });
     }
 

@@ -15,4 +15,16 @@ export class TransactionService {
     getRevenue(type: string): Observable<any> {
         return this.http.get(`${this.api}/revenue`, { params: { type } });
     }
+
+    getProjectSummary(id: number): Observable<any> {
+        return this.http.get(`${this.api}/project/${id}/summary`);
+    }
+
+    getClientSummary(id: number): Observable<any> {
+        return this.http.get(`${this.api}/client/${id}/summary`);
+    }
+
+    getClientSummaries(): Observable<any[]> {
+        return this.http.get<any[]>(`${this.api}/clients/summaries`);
+    }
 }
