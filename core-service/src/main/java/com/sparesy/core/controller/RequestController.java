@@ -49,8 +49,7 @@ public class RequestController {
 
     @GetMapping("/project/{projectId}/client")
     public ResponseEntity<List<Request>> getClientRequestsByProject(@PathVariable Long projectId) {
-        System.out.println("controller hit");
-        return ResponseEntity.ok(requestService.getClientVisibleRequests(projectId));
+        return ResponseEntity.ok(requestService.getRequestsByProject(projectId));
     }
 
     // GET /api/requests/my

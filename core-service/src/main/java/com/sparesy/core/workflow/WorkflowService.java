@@ -11,7 +11,6 @@ import com.sparesy.core.service.ProductionService;
 import com.sparesy.core.service.ProjectService;
 import com.sparesy.core.service.TransactionService;
 import com.sparesy.core.workflow.events.AllRequestsApprovedEvent;
-import com.sparesy.core.workflow.events.ProjectSubmittedEvent;
 import com.sparesy.core.workflow.events.QuoteApprovedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -42,19 +41,7 @@ public class WorkflowService {
         this.companyRepository = companyRepository;
     }
 
-    // Triggered when a client submits a new project
-    // Confirms status is SUBMITTED — already set by ProjectService but
-    // this is the place to add any future automation on submission
-    @EventListener
-    public void onProjectSubmitted(ProjectSubmittedEvent event) {
-        Project project = event.getProject();
 
-        // Status is already SUBMITTED — log or notify here in future
-        // For now just confirm and leave room for BOM parsing automation
-        projectService.updateStatus(project.getId(), ProjectStatus.SUBMITTED);
-    }
-
-    // Triggered when manufacturer approves the last pending request for a project
     // Advances project status to QUOTED so manufacturer can build the client quote
     @EventListener
     public void onAllRequestsApproved(AllRequestsApprovedEvent event) {

@@ -13,7 +13,7 @@ export class CompanyService {
     }
 
     getApprovedClients(): Observable<any[]> {
-        return this.http.get<any[]>(`${this.api}/Approvedclients`);
+        return this.http.get<any[]>(`${this.api}/approved-clients`);
     }
 
     getSuppliers(): Observable<any[]> {
@@ -21,7 +21,7 @@ export class CompanyService {
     }
 
     getApprovedSuppliers(): Observable<any[]> {
-        return this.http.get<any[]>(`${this.api}/Approvedsuppliers`);
+        return this.http.get<any[]>(`${this.api}/approved-suppliers`);
     }
 
     deleteCompany(id: number): Observable<void> {

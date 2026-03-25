@@ -26,14 +26,14 @@ public class QuoteService {
 
 
     public QuoteService(QuoteRepository quoteRepository,
-                    ProjectService projectService,
-                    ApplicationEventPublisher eventPublisher,
-                    NotificationService notificationService) {
-    this.quoteRepository = quoteRepository;
-    this.projectService = projectService;
-    this.eventPublisher = eventPublisher;
-    this.notificationService=notificationService;
-}
+                        ProjectService projectService,
+                        ApplicationEventPublisher eventPublisher,
+                        NotificationService notificationService) {
+        this.quoteRepository = quoteRepository;
+        this.projectService = projectService;
+        this.eventPublisher = eventPublisher;
+        this.notificationService = notificationService;
+    }
 
 
     // Manufacturer creates a quote draft for a project
@@ -79,16 +79,16 @@ public class QuoteService {
 
     // Client approves the quote
     public Quote approveQuote(Long id) {
-    Quote quote = getQuoteById(id);
-    quote.setStatus(QuoteStatus.APPROVED);
-    quote.setClientResponseAt(LocalDateTime.now());
-    Quote saved = quoteRepository.save(quote);
+        Quote quote = getQuoteById(id);
+        quote.setStatus(QuoteStatus.APPROVED);
+        quote.setClientResponseAt(LocalDateTime.now());
+        Quote saved = quoteRepository.save(quote);
 
-    // Fire event — WorkflowService creates production order and records transactions
-    eventPublisher.publishEvent(new QuoteApprovedEvent(this, saved.getProject(), saved));
+        // Fire event — WorkflowService creates production order and records transactions
+        eventPublisher.publishEvent(new QuoteApprovedEvent(this, saved.getProject(), saved));
 
-    return saved;
-}
+        return saved;
+    }
 
     // Client rejects the quote with an optional note
     public Quote rejectQuote(Long id, String note) {

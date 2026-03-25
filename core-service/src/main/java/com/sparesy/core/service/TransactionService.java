@@ -76,9 +76,13 @@ public class TransactionService {
 
     public ProjectFinancialsResponseDTO getProjectFinancials(Long projectId) {
         Project project = projectRepository.findById(projectId).orElseThrow();
+
+        // sumAmountByProjectIdAndType returns null when no rows match — default to ZERO
         BigDecimal revenue = transactionRepository.sumAmountByProjectIdAndType(projectId, TransactionType.MANUFACTURER_REVENUE);
-        BigDecimal cost = transactionRepository.sumAmountByProjectIdAndType(projectId, TransactionType.SUPPLIER_REVENUE);
-        
+        BigDecimal cost    = transactionRepository.sumAmountByProjectIdAndType(projectId, TransactionType.SUPPLIER_REVENUE);
+        if (revenue == null) revenue = BigDecimal.ZERO;
+        if (cost == null)    cost    = BigDecimal.ZERO;
+
         return ProjectFinancialsResponseDTO.builder()
                 .projectId(projectId)
                 .projectName(project.getName())

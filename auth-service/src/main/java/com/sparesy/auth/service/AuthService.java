@@ -29,7 +29,8 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     public LoginResponse login(LoginRequest request) {
 
