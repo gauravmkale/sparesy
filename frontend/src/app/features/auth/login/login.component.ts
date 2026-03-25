@@ -4,7 +4,6 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angula
 import { AuthService } from "../../../core/auth/auth.service";
 import { Router, RouterModule } from "@angular/router";
 import { NotificationService } from "../../../core/services/notification.service";
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
     selector: 'app-login',
@@ -17,7 +16,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 export class LoginComponent {
     loginForm: FormGroup;
     isLoading = signal(false);
-    
+
     private auth = inject(AuthService);
     private router = inject(Router);
     private notif = inject(NotificationService);
@@ -32,10 +31,9 @@ export class LoginComponent {
 
     onSubmit() {
         if (!this.loginForm.valid || this.isLoading()) return;
-        
+
         this.isLoading.set(true);
-        this.auth.login(this.loginForm.value).pipe(takeUntilDestroyed())
-        .subscribe({
+        this.auth.login(this.loginForm.value).subscribe({
             next: () => {
                 this.notif.success('Login successful!');
                 const user = this.auth.getUserFromToken();
