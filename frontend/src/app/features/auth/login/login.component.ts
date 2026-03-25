@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angula
 import { AuthService } from "../../../core/auth/auth.service";
 import { Router, RouterModule } from "@angular/router";
 import { NotificationService } from "../../../core/services/notification.service";
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
     selector: 'app-login',
@@ -33,7 +34,8 @@ export class LoginComponent {
         if (!this.loginForm.valid || this.isLoading()) return;
         
         this.isLoading.set(true);
-        this.auth.login(this.loginForm.value).subscribe({
+        this.auth.login(this.loginForm.value).pipe(takeUntilDestroyed())
+        .subscribe({
             next: () => {
                 this.notif.success('Login successful!');
                 const user = this.auth.getUserFromToken();

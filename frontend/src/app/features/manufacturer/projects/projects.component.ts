@@ -37,8 +37,8 @@ import { catchError } from 'rxjs/operators';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let p of projects()" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition cursor-pointer" (click)="selectProject(p)">
-                <td class="px-5 py-3 text-gray-500">#{{ p.id }}</td>
+              <tr *ngFor="let p of projects(); let i = index" class="border-t border-gray-800/40 hover:bg-white/[0.02] transition cursor-pointer" (click)="selectProject(p)">
+                <td class="px-5 py-3 text-gray-500">#{{ i + 1 }}</td>
                 <td class="px-5 py-3 text-white font-medium">{{ p.name }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ p.client?.name || '—' }}</td>
                 <td class="px-5 py-3 text-gray-400">{{ p.quantity }}</td>
@@ -149,11 +149,11 @@ import { catchError } from 'rxjs/operators';
           </div>
         </div>
 
-        <!-- Client Requests -->
+        <!-- Client Quotes -->
         <div class="bg-[#141414] border border-gray-800/60 rounded-xl mb-6">
           <div class="px-5 py-4 border-b border-gray-800/60">
             <h3 class="text-sm font-semibold text-white uppercase tracking-wider">
-              Client Requests
+              Client Quotes
             </h3>
           </div>
 
@@ -161,38 +161,48 @@ import { catchError } from 'rxjs/operators';
             <table class="w-full text-sm">
               <thead>
                 <tr class="text-gray-500 text-xs uppercase tracking-wider">
-                  <th class="text-left px-5 py-3">Component</th>
-                  <th class="text-left px-5 py-3">Qty</th>
-                  <th class="text-left px-5 py-3">Target Price</th>
+                  <th class="text-left px-5 py-3">Total Price</th>
+                  <th class="text-left px-5 py-3">Lead Time (Days)</th>
                   <th class="text-left px-5 py-3">Status</th>
+                  <th class="text-left px-5 py-3">Notes</th>
+                  <th class="text-left px-5 py-3">Sent At</th>
                 </tr>
               </thead>
 
               <tbody>
-                <tr *ngFor="let cr of clientRequests()" class="border-t border-gray-800/40">
-                  <td class="px-5 py-3 text-white">
-                    {{ cr.component?.name }}
+                <tr *ngFor="let q of quotes()" class="border-t border-gray-800/40">
+                  <td class="px-5 py-3 text-white font-medium">
+                    ₹{{ q.totalPrice }}
                   </td>
 
                   <td class="px-5 py-3 text-gray-400">
-                    {{ cr.quantityNeeded }}
-                  </td>
-
-                  <td class="px-5 py-3 text-gray-300">
-                    {{ cr.targetPrice ? '₹' + cr.targetPrice : '—' }}
+                    {{ q.leadTimeDays }}
                   </td>
 
                   <td class="px-5 py-3">
                     <span class="px-2 py-0.5 rounded-md text-xs font-semibold"
-                      [ngClass]="getRequestStatusClass(cr.status)">
-                      {{ cr.status }}
+                      [ngClass]="{
+                        'bg-yellow-500/20 text-yellow-400': q.status === 'DRAFT',
+                        'bg-blue-500/20 text-blue-400': q.status === 'SENT',
+                        'bg-emerald-500/20 text-emerald-400': q.status === 'APPROVED',
+                        'bg-red-500/20 text-red-400': q.status === 'REJECTED'
+                      }">
+                      {{ q.status }}
                     </span>
+                  </td>
+
+                  <td class="px-5 py-3 text-gray-400">
+                    {{ q.notes || '—' }}
+                  </td>
+
+                  <td class="px-5 py-3 text-gray-500">
+                    {{ q.sentAt ? (q.sentAt | date:'shortDate') : '—' }}
                   </td>
                 </tr>
 
-                <tr *ngIf="clientRequests().length === 0">
-                  <td colspan="4" class="px-5 py-6 text-center text-gray-600">
-                    No client requests
+                <tr *ngIf="quotes().length === 0">
+                  <td colspan="5" class="px-5 py-6 text-center text-gray-600">
+                    No client quotes
                   </td>
                 </tr>
               </tbody>
@@ -202,7 +212,7 @@ import { catchError } from 'rxjs/operators';
 
         <!-- Send Request Modal -->
         <div *ngIf="showSendRequest()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" (click)="showSendRequest.set(false)">
-          <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-w-md space-y-4" (click)="$event.stopPropagation()">
+          <div class="bg-[#141414] border border-gray-800 rounded-2xl p-6 w-full max-md space-y-4" (click)="$event.stopPropagation()">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-white">Sourcing Request</h3>
                 <div class="flex bg-[#1a1a1a] rounded-lg p-1">
@@ -330,6 +340,7 @@ export class MfgProjectsComponent implements OnInit {
     projects = signal<any[]>([]);
     selectedProject = signal<any>(null);
     requests = signal<any[]>([]);
+    quotes = signal<any[]>([]);
     suppliers = signal<any[]>([]);
     allComponents = signal<any[]>([]);
     supplierSpecificComponents = signal<any[]>([]);
@@ -379,7 +390,7 @@ export class MfgProjectsComponent implements OnInit {
         this.isLoading.set(true);
         this.projectService.getAllProjects().subscribe({
             next: (d: any[]) => { 
-                this.projects.set((d || []).sort((a, b) => b.id - a.id)); 
+                this.projects.set((d || []).sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())); 
                 this.isLoading.set(false); 
             },
             error: () => this.isLoading.set(false)
@@ -391,11 +402,11 @@ export class MfgProjectsComponent implements OnInit {
         this.isLoading.set(true);
         forkJoin({
           sourcing: this.requestService.getByProject(p.id),
-          client : this.requestService.getClientRequestsByProject(p.id)
+          quotes: this.quoteService.getByProject(p.id).pipe(catchError(() => of(null)))
         }).subscribe({
             next: (res: any) => { 
                 this.requests.set(res.sourcing  || []); 
-                this.clientRequests.set(res.client || []);
+                this.quotes.set(res.quotes ? [res.quotes] : []);
                 this.isLoading.set(false); 
                 this.calculateBaseCost();
             },
