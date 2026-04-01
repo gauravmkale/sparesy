@@ -1,0 +1,441 @@
+diff --git a/auth-service/src/main/java/com/sparesy/auth/controller/AuthController.java b/auth-service/src/main/java/com/sparesy/auth/controller/AuthController.java
+index a462734..6b54c7c 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/controller/AuthController.java
++++ b/auth-service/src/main/java/com/sparesy/auth/controller/AuthController.java
+@@ -5,13 +5,17 @@ import com.sparesy.auth.dto.LoginRequest;
+ import com.sparesy.auth.dto.LoginResponse;
+ import com.sparesy.auth.dto.RegisterRequest;
+ import com.sparesy.auth.dto.UpdateCompanyRequest;
++import com.sparesy.auth.enums.CompanyType;
+ import com.sparesy.auth.model.Company;
++import com.sparesy.auth.model.Invitation;
+ import com.sparesy.auth.service.AuthService;
+ import jakarta.validation.Valid;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.annotation.*;
+ 
++import java.util.Map;
++
+ // @RestController = @Controller + @ResponseBody
+ // means every method automatically converts return value to JSON
+ // @RequestMapping sets the base URL for all endpoints in this class
+@@ -41,6 +45,21 @@ public class AuthController {
+         authService.register(request);
+         return ResponseEntity.status(201).build();
+     }
++
++    // POST /api/auth/invite
++    @PostMapping("/invite")
++    public ResponseEntity<String> invite(@RequestBody Map<String, String> request) {
++        String email = request.get("email");
++        CompanyType type = CompanyType.valueOf(request.get("type"));
++        String token = authService.createInvitation(email, type);
++        return ResponseEntity.ok(token);
++    }
++
++    // GET /api/auth/invite/validate?token=xyz
++    @GetMapping("/invite/validate")
++    public ResponseEntity<Invitation> validateInvitation(@RequestParam String token) {
++        return ResponseEntity.ok(authService.validateInvitation(token));
++    }
+     // GET /api/auth/companies/{id}
+     @GetMapping("/companies/{id}")
+     public ResponseEntity<CompanyResponse> getCompanyById(@PathVariable Long id) {
+diff --git a/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java b/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
+index aaaabe7..236daf3 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
++++ b/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
+@@ -41,4 +41,7 @@ public class RegisterRequest {
+ 
+     @NotBlank(message = "Contact person name is required")
+     private String contactPersonName;
++
++    //Invite token for manufacturer's link.
++    private String inviteToken;
+ }
+\ No newline at end of file
+diff --git a/auth-service/src/main/java/com/sparesy/auth/model/Company.java b/auth-service/src/main/java/com/sparesy/auth/model/Company.java
+index 3f3e17e..46a0729 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/model/Company.java
++++ b/auth-service/src/main/java/com/sparesy/auth/model/Company.java
+@@ -1,6 +1,7 @@
+ package com.sparesy.auth.model;
+ 
+ import com.sparesy.auth.enums.CompanyType;
++import com.sparesy.auth.enums.OnboardingStatus;
+ import jakarta.persistence.*;
+ import lombok.*;
+ import org.hibernate.annotations.CreationTimestamp;
+@@ -54,6 +55,11 @@ public class Company {
+     @Column(nullable = false, length = 100)
+     private String contactPersonName;
+ 
++    @Enumerated(EnumType.STRING)
++    @Builder.Default
++    @Column(nullable = false, length = 20)
++    private OnboardingStatus onboardingStatus = OnboardingStatus.PENDING;
++
+     // Soft enable/disable — manufacturer can deactivate a company
+     // MySQL stores this as TINYINT(1) — true=1, false=0
+     @Builder.Default
+diff --git a/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java b/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
+index c8dc209..2da27f2 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
++++ b/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
+@@ -1,47 +1,52 @@
+ package com.sparesy.auth.service;
+ 
++import com.sparesy.auth.enums.CompanyType;
++import com.sparesy.auth.enums.OnboardingStatus;
+ import com.sparesy.auth.dto.UpdateCompanyRequest;
+ import com.sparesy.auth.dto.LoginRequest;
+ import com.sparesy.auth.dto.LoginResponse;
+ import com.sparesy.auth.dto.RegisterRequest;
+ import com.sparesy.auth.model.Company;
++import com.sparesy.auth.model.Invitation;
+ import com.sparesy.auth.repository.CompanyRepository;
++import com.sparesy.auth.repository.InvitationRepository;
+ import com.sparesy.auth.security.JwtUtil;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+ import org.springframework.stereotype.Service;
+ 
+-// @Service tells Spring this class contains business logic
++import java.time.LocalDateTime;
++
+ @Service
+ public class AuthService {
+ 
+-    // @Autowired tells Spring to inject these dependencies automatically
+-    // Spring finds the matching bean and wires it in for you
+     @Autowired
+     private CompanyRepository companyRepository;
+ 
++    @Autowired
++    private InvitationRepository invitationRepository;
++
+     @Autowired
+     private JwtUtil jwtUtil;
+ 
+-    // BCryptPasswordEncoder handles password hashing and verification
+     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+ 
+     public LoginResponse login(LoginRequest request) {
+ 
+-        // Step 1 — find the company by email
+-        // findByEmail returns Optional — meaning it might be empty
+-        // orElseThrow means: if empty, throw this exception
+         Company company = companyRepository.findByEmail(request.getEmail())
+                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+ 
+-        // Step 2 — check if the account is active
+         if (!company.getIsActive()) {
+             throw new RuntimeException("Account is deactivated");
+         }
+ 
+-        // Step 3 — verify the password
+-        // passwordEncoder.matches() hashes what the user typed
+-        // and compares it to the hash stored in the database
++        if (company.getOnboardingStatus() == OnboardingStatus.PENDING) {
++            throw new RuntimeException("Account is pending approval from the Manufacturer");
++        }
++        if (company.getOnboardingStatus() == OnboardingStatus.REJECTED) {
++            throw new RuntimeException("Account registration was rejected");
++        }
++
+         boolean passwordMatches = passwordEncoder.matches(
+                 request.getPassword(),
+                 company.getPassword()
+@@ -51,33 +56,57 @@ public class AuthService {
+             throw new RuntimeException("Invalid email or password");
+         }
+ 
+-        // Step 4 — generate the JWT token
+         String token = jwtUtil.generateToken(company.getId(), company.getType());
+ 
+-        // Step 5 — return the response
+-        // Angular will receive this and redirect based on companyType
+         return new LoginResponse(token, company.getId(), company.getType());
+     }
+ 
++    public String createInvitation(String email, CompanyType type) {
++        Invitation invitation = invitationRepository.findByEmail(email)
++                .filter(i -> !i.getUsed())
++                .orElse(Invitation.builder().email(email).type(type).build());
++
++        invitationRepository.save(invitation);
++        return invitation.getToken();
++    }
++
++    public Invitation validateInvitation(String token) {
++        Invitation invitation = invitationRepository.findByToken(token)
++                .orElseThrow(() -> new RuntimeException("Invalid or missing invitation token"));
++
++        if (invitation.getUsed()) {
++            throw new RuntimeException("This invitation has already been used");
++        }
++
++        if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
++            throw new RuntimeException("This invitation link has expired");
++        }
++
++        return invitation;
++    }
++
+     public void register(RegisterRequest request) {
+ 
+-        // Step 1 — check if email already exists
++        // Enforce invite token for non-manufacturer registrations
++        if (request.getType() != CompanyType.MANUFACTURER) {
++            if (request.getInviteToken() == null || request.getInviteToken().isBlank()) {
++                throw new RuntimeException("An invitation token is required to register");
++            }
++            validateInvitation(request.getInviteToken());
++        }
++
+         boolean emailExists = companyRepository.findByEmail(request.getEmail()).isPresent();
+         if (emailExists) {
+             throw new RuntimeException("Email already registered");
+         }
+ 
+         boolean gstExists = companyRepository.findByGstNumber(request.getGstNumber()).isPresent();
+-        if(gstExists){
++        if (gstExists) {
+             throw new RuntimeException("GST number already registered");
+         }
+-        // Step 2 — hash the password before saving
+-        // NEVER save plain text passwords
++
+         String hashedPassword = passwordEncoder.encode(request.getPassword());
+ 
+-        // Step 3 — build the Company entity using Lombok's @Builder
+-        // Instead of new Company() and calling setters one by one,
+-        // builder lets you chain everything cleanly
+         Company company = Company.builder()
+             .name(request.getName())
+             .email(request.getEmail())
+@@ -88,22 +117,30 @@ public class AuthService {
+             .gstNumber(request.getGstNumber())
+             .address(request.getAddress())
+             .contactPersonName(request.getContactPersonName())
++            .onboardingStatus(request.getType() == CompanyType.MANUFACTURER ? OnboardingStatus.APPROVED : OnboardingStatus.PENDING)
+             .isActive(true)
+             .build();
+ 
+         companyRepository.save(company);
++
++        // Mark invitation as used
++        if (request.getInviteToken() != null) {
++            invitationRepository.findByToken(request.getInviteToken())
++                .ifPresent(invitation -> {
++                    invitation.setUsed(true);
++                    invitationRepository.save(invitation);
++                });
++        }
+     }
+ 
+-    //Get company by id
+-    public Company getCompanyById(Long id){
++    public Company getCompanyById(Long id) {
+         return companyRepository.findById(id)
+-                .orElseThrow(() -> new RuntimeException("Company not found with id: "+id));
++                .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));
+     }
+ 
+-    //Update company details
+-    public void updateCompany(Long id, UpdateCompanyRequest request){
++    public void updateCompany(Long id, UpdateCompanyRequest request) {
+         Company company = companyRepository.findById(id)
+-                .orElseThrow(() -> new RuntimeException("Company not found with id: "+id));
++                .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));
+ 
+         company.setAddress(request.getAddress());
+         company.setContactNumber(request.getContactNumber());
+@@ -113,7 +150,6 @@ public class AuthService {
+         companyRepository.save(company);
+     }
+ 
+-    // Deactivate company
+     public void deactivateCompany(Long id) {
+         Company company = companyRepository.findById(id)
+                 .orElseThrow(() -> new RuntimeException("Company not found with id: " + id));
+diff --git a/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java b/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
+index 7248a60..fe8fccd 100644
+--- a/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
++++ b/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
+@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*;
+ 
+ import java.util.List;
+ 
+-// Handles all company-related reads in core-service
+-// Company creation is handled by auth-service — this is read-only
++// Handles all company-related reads and manufacturer approvals in core-service
++// Company registration is handled by auth-service
+ @RestController
+ @RequestMapping("/api/companies")
+ public class CompanyController {
+@@ -20,19 +20,38 @@ public class CompanyController {
+     }
+ 
+     // GET /api/companies/clients
+-    // Manufacturer views all registered client companies
+     @GetMapping("/clients")
+     public ResponseEntity<List<Company>> getAllClients() {
+         return ResponseEntity.ok(companyService.getAllClients());
+     }
+ 
+     // GET /api/companies/suppliers
+-    // Manufacturer views all registered supplier companies
+     @GetMapping("/suppliers")
+     public ResponseEntity<List<Company>> getAllSuppliers() {
+         return ResponseEntity.ok(companyService.getAllSuppliers());
+     }
+ 
++    // GET /api/companies/pending
++    // Manufacturer views all companies waiting for approval
++    @GetMapping("/pending")
++    public ResponseEntity<List<Company>> getPendingCompanies() {
++        return ResponseEntity.ok(companyService.getPendingCompanies());
++    }
++
++    // PUT /api/companies/{id}/approve
++    @PutMapping("/{id}/approve")
++    public ResponseEntity<Void> approveCompany(@PathVariable Long id) {
++        companyService.approveCompany(id);
++        return ResponseEntity.ok().build();
++    }
++
++    // PUT /api/companies/{id}/reject
++    @PutMapping("/{id}/reject")
++    public ResponseEntity<Void> rejectCompany(@PathVariable Long id) {
++        companyService.rejectCompany(id);
++        return ResponseEntity.ok().build();
++    }
++
+     // GET /api/companies/{id}
+     // Fetch a single company by id — used internally and by manufacturer
+     @GetMapping("/{id}")
+diff --git a/core-service/src/main/java/com/sparesy/core/entity/Company.java b/core-service/src/main/java/com/sparesy/core/entity/Company.java
+index 12a98e3..0ee78cb 100644
+--- a/core-service/src/main/java/com/sparesy/core/entity/Company.java
++++ b/core-service/src/main/java/com/sparesy/core/entity/Company.java
+@@ -2,6 +2,7 @@ package com.sparesy.core.entity;
+ 
+ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+ import com.sparesy.core.enums.CompanyType;
++import com.sparesy.core.enums.OnboardingStatus;
+ import jakarta.persistence.*;
+ import lombok.Getter;
+ import lombok.Setter;
+@@ -48,6 +49,10 @@ public class Company {
+     @Column(length = 100)
+     private String contactPersonName;
+ 
++    @Enumerated(EnumType.STRING)
++    @Column(nullable = false, length = 20)
++    private OnboardingStatus onboardingStatus = OnboardingStatus.PENDING;
++
+     @Column(nullable = false)
+     private Boolean isActive = true;
+ 
+diff --git a/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java b/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
+index 0a47f3c..21e1ab2 100644
+--- a/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
++++ b/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
+@@ -2,11 +2,13 @@ package com.sparesy.core.repository;
+ 
+ import com.sparesy.core.entity.Company;
+ import com.sparesy.core.enums.CompanyType;
++import com.sparesy.core.enums.OnboardingStatus;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ 
+ import java.util.List;
+ 
+ public interface CompanyRepository extends JpaRepository<Company, Long> {
+     List<Company> findByType(CompanyType type);
++    List<Company> findByOnboardingStatus(OnboardingStatus status);
+     boolean existsByEmail(String email);
+ }
+\ No newline at end of file
+diff --git a/core-service/src/main/java/com/sparesy/core/repository/ComponentRepository.java b/core-service/src/main/java/com/sparesy/core/repository/ComponentRepository.java
+index 109ce50..eb35a08 100644
+--- a/core-service/src/main/java/com/sparesy/core/repository/ComponentRepository.java
++++ b/core-service/src/main/java/com/sparesy/core/repository/ComponentRepository.java
+@@ -9,4 +9,5 @@ import java.util.Optional;
+ public interface ComponentRepository extends JpaRepository<Component, Long> {
+     Optional<Component> findByPartNumber(String partNumber);
+     List<Component> findByCategory(String category);
++    boolean existsByPartNumber(String partNumber);
+ }
+\ No newline at end of file
+diff --git a/core-service/src/main/java/com/sparesy/core/service/CompanyService.java b/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
+index 3877ccf..b92b40c 100644
+--- a/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
++++ b/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
+@@ -2,7 +2,11 @@ package com.sparesy.core.service;
+ 
+ import com.sparesy.core.entity.Company;
+ import com.sparesy.core.enums.CompanyType;
++import com.sparesy.core.enums.OnboardingStatus;
+ import com.sparesy.core.repository.CompanyRepository;
++import com.sparesy.core.websocket.NotificationService;
++
++import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
+ 
+ import java.util.List;
+@@ -10,6 +14,9 @@ import java.util.List;
+ @Service
+ public class CompanyService {
+ 
++    @Autowired
++    private NotificationService notificationService;
++
+     private final CompanyRepository companyRepository;
+ 
+     // Constructor injection — no @Autowired needed in modern Spring
+@@ -27,6 +34,26 @@ public class CompanyService {
+         return companyRepository.findByType(CompanyType.SUPPLIER);
+     }
+ 
++    public List<Company> getPendingCompanies() {
++        return companyRepository.findByOnboardingStatus(OnboardingStatus.PENDING);
++    }
++
++    public void approveCompany(Long id) {
++        Company company = getCompanyById(id);
++        company.setOnboardingStatus(OnboardingStatus.APPROVED);
++        companyRepository.save(company);
++
++        notificationService.push(company.getId(), "ONBOARDING_APPROVED");
++    }
++
++    public void rejectCompany(Long id) {
++        Company company = getCompanyById(id);
++        company.setOnboardingStatus(OnboardingStatus.REJECTED);
++        companyRepository.save(company);
++
++        notificationService.push(company.getId(), "ONBOARDING_REJECTED");
++    }
++
+     // Returns a single company by id — used internally by other services
+     public Company getCompanyById(Long id) {
+         return companyRepository.findById(id)
+diff --git a/core-service/src/main/java/com/sparesy/core/websocket/NotificationService.java b/core-service/src/main/java/com/sparesy/core/websocket/NotificationService.java
+index d788826..3c3e13e 100644
+--- a/core-service/src/main/java/com/sparesy/core/websocket/NotificationService.java
++++ b/core-service/src/main/java/com/sparesy/core/websocket/NotificationService.java
+@@ -45,4 +45,9 @@ public class NotificationService {
+     public void notifySupplierQuoteSubmitted(Long manufacturerCompanyId, Long requestId) {
+         push(manufacturerCompanyId, "SUPPLIER_QUOTED:" + requestId);
+     }
+-}
+\ No newline at end of file
++
++    // Notify manufacturer when a new company registers and is PENDING approval
++    public void notifyNewRegistration(Long manufacturerCompanyId, String companyName) {
++        push(manufacturerCompanyId, "NEW_ONBOARDING:" + companyName);
++    }
++    }
+\ No newline at end of file

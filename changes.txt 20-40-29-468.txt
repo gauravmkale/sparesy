@@ -1,0 +1,439 @@
+diff --git a/auth-service/src/main/java/com/sparesy/auth/dto/CompanyResponse.java b/auth-service/src/main/java/com/sparesy/auth/dto/CompanyResponse.java
+index 2e8c599..b3e5a01 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/dto/CompanyResponse.java
++++ b/auth-service/src/main/java/com/sparesy/auth/dto/CompanyResponse.java
+@@ -28,7 +28,7 @@ public class CompanyResponse {
+         this.name = company.getName();
+         this.email = company.getEmail();
+         this.type = company.getType();
+-        this.pinCode = company.getPincode();
++        this.pinCode = company.getPinCode();
+         this.contactNumber = company.getContactNumber();
+         this.gstNumber = company.getGstNumber();
+         this.address = company.getAddress();
+diff --git a/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java b/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
+index 236daf3..f2553f0 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
++++ b/auth-service/src/main/java/com/sparesy/auth/dto/RegisterRequest.java
+@@ -1,5 +1,6 @@
+ package com.sparesy.auth.dto;
+ 
++import com.fasterxml.jackson.annotation.JsonAlias;
+ import com.sparesy.auth.enums.CompanyType;
+ import jakarta.validation.constraints.*;
+ import lombok.Getter;
+@@ -24,6 +25,7 @@ public class RegisterRequest {
+     @NotNull(message = "Company type is required")
+     private CompanyType type;
+ 
++    @JsonAlias("pincode")
+     @NotBlank(message = "Pin code is required")
+     @Pattern(regexp = "^[0-9]{6}$", message = "Pin code must be 6 digits")
+     private String pinCode;
+diff --git a/auth-service/src/main/java/com/sparesy/auth/model/Company.java b/auth-service/src/main/java/com/sparesy/auth/model/Company.java
+index 46a0729..10eaf3d 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/model/Company.java
++++ b/auth-service/src/main/java/com/sparesy/auth/model/Company.java
+@@ -41,7 +41,7 @@ public class Company {
+     private CompanyType type;
+ 
+     @Column(nullable =false, length =6)
+-    private String pincode;
++    private String pinCode;
+ 
+     @Column(nullable = false,length =10)
+     private String contactNumber;
+diff --git a/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java b/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
+index 2da27f2..1e2438d 100644
+--- a/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
++++ b/auth-service/src/main/java/com/sparesy/auth/service/AuthService.java
+@@ -112,7 +112,7 @@ public class AuthService {
+             .email(request.getEmail())
+             .password(hashedPassword)
+             .type(request.getType())
+-            .pincode(request.getPinCode())
++            .pinCode(request.getPinCode())
+             .contactNumber(request.getContactNumber())
+             .gstNumber(request.getGstNumber())
+             .address(request.getAddress())
+@@ -145,7 +145,7 @@ public class AuthService {
+         company.setAddress(request.getAddress());
+         company.setContactNumber(request.getContactNumber());
+         company.setContactPersonName(request.getContactPersonName());
+-        company.setPincode(request.getPinCode());
++        company.setPinCode(request.getPinCode());
+ 
+         companyRepository.save(company);
+     }
+diff --git a/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java b/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
+index fe8fccd..6a7b007 100644
+--- a/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
++++ b/core-service/src/main/java/com/sparesy/core/controller/CompanyController.java
+@@ -25,12 +25,24 @@ public class CompanyController {
+         return ResponseEntity.ok(companyService.getAllClients());
+     }
+ 
++    @GetMapping("/Approvedclients")
++    public ResponseEntity<List<Company>> getAllApprovedClients() {
++        return ResponseEntity.ok(companyService.getAllApprovedClients());
++    }
++    
++
+     // GET /api/companies/suppliers
+     @GetMapping("/suppliers")
+     public ResponseEntity<List<Company>> getAllSuppliers() {
+         return ResponseEntity.ok(companyService.getAllSuppliers());
+     }
+ 
++    @GetMapping("/Approvedsuppliers")
++    public ResponseEntity<List<Company>> getAllApprovedSuppliers() {
++        return ResponseEntity.ok(companyService.getAllApprovedSuppliers());
++    }
++
++
+     // GET /api/companies/pending
+     // Manufacturer views all companies waiting for approval
+     @GetMapping("/pending")
+diff --git a/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java b/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
+index 21e1ab2..456cc52 100644
+--- a/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
++++ b/core-service/src/main/java/com/sparesy/core/repository/CompanyRepository.java
+@@ -11,4 +11,5 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
+     List<Company> findByType(CompanyType type);
+     List<Company> findByOnboardingStatus(OnboardingStatus status);
+     boolean existsByEmail(String email);
+-}
+\ No newline at end of file
++    List<Company> findByTypeAndOnboardingStatus(CompanyType type, OnboardingStatus status);
++}
+diff --git a/core-service/src/main/java/com/sparesy/core/service/CompanyService.java b/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
+index b92b40c..bb9ed1a 100644
+--- a/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
++++ b/core-service/src/main/java/com/sparesy/core/service/CompanyService.java
+@@ -29,11 +29,20 @@ public class CompanyService {
+         return companyRepository.findByType(CompanyType.CLIENT);
+     }
+ 
++    public List<Company> getAllApprovedClients() {
++        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.CLIENT, OnboardingStatus.APPROVED);
++    }
++
+     // Returns all companies of type SUPPLIER — used by manufacturer portal
+     public List<Company> getAllSuppliers() {
+         return companyRepository.findByType(CompanyType.SUPPLIER);
+     }
+ 
++    //Return only approved supp;liers
++    public List<Company> getAllApprovedSuppliers() {
++        return companyRepository.findByTypeAndOnboardingStatus(CompanyType.SUPPLIER, OnboardingStatus.APPROVED);
++    }
++
+     public List<Company> getPendingCompanies() {
+         return companyRepository.findByOnboardingStatus(OnboardingStatus.PENDING);
+     }
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 1f0e77c..b6db90b 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -8,7 +8,7 @@
+       "name": "sparesy",
+       "version": "0.0.0",
+       "dependencies": {
+-        "@angular/animations": "^21.2.1",
++        "@angular/animations": "^21.2.4",
+         "@angular/common": "^21.2.0",
+         "@angular/compiler": "^21.2.0",
+         "@angular/core": "^21.2.0",
+@@ -345,9 +345,9 @@
+       }
+     },
+     "node_modules/@angular/animations": {
+-      "version": "21.2.1",
+-      "resolved": "https://registry.npmjs.org/@angular/animations/-/animations-21.2.1.tgz",
+-      "integrity": "sha512-zT/S29pUTbziCLvZ2itBdNWd5i8tsXexofH7KA4n2yvYmK1EhNpE7TlHRjghmsHgtDt4VnGiMW4zXEyrl05Dwg==",
++      "version": "21.2.4",
++      "resolved": "https://registry.npmjs.org/@angular/animations/-/animations-21.2.4.tgz",
++      "integrity": "sha512-hO1P7ks9n7lW3D31bzHohSuoAaj05xJUlK8rZgX8IkH5DLx4qhvfNh0t4bbLuBJLP2r1TaLsQ8KFcemCkFRO2w==",
+       "license": "MIT",
+       "dependencies": {
+         "tslib": "^2.3.0"
+@@ -356,7 +356,7 @@
+         "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+       },
+       "peerDependencies": {
+-        "@angular/core": "21.2.1"
++        "@angular/core": "21.2.4"
+       }
+     },
+     "node_modules/@angular/build": {
+diff --git a/frontend/package.json b/frontend/package.json
+index ffae20f..e9d953d 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -11,7 +11,7 @@
+   "private": true,
+   "packageManager": "npm@11.11.0",
+   "dependencies": {
+-    "@angular/animations": "^21.2.1",
++    "@angular/animations": "^21.2.4",
+     "@angular/common": "^21.2.0",
+     "@angular/compiler": "^21.2.0",
+     "@angular/core": "^21.2.0",
+diff --git a/frontend/src/app/core/services/company.service.ts b/frontend/src/app/core/services/company.service.ts
+index 9b0687f..23f7b9b 100644
+--- a/frontend/src/app/core/services/company.service.ts
++++ b/frontend/src/app/core/services/company.service.ts
+@@ -12,10 +12,18 @@ export class CompanyService {
+         return this.http.get<any[]>(`${this.api}/clients`);
+     }
+ 
++    getApprovedClients(): Observable<any[]> {
++        return this.http.get<any[]>(`${this.api}/Approvedclients`);
++    }
++
+     getSuppliers(): Observable<any[]> {
+         return this.http.get<any[]>(`${this.api}/suppliers`);
+     }
+ 
++    getApprovedSuppliers(): Observable<any[]> {
++        return this.http.get<any[]>(`${this.api}/Approvedsuppliers`);
++    }
++
+     getById(id: number): Observable<any> {
+         return this.http.get(`${this.api}/${id}`);
+     }
+diff --git a/frontend/src/app/features/auth/register/register.component.html b/frontend/src/app/features/auth/register/register.component.html
+index 74c66bd..fab17e1 100644
+--- a/frontend/src/app/features/auth/register/register.component.html
++++ b/frontend/src/app/features/auth/register/register.component.html
+@@ -4,6 +4,13 @@
+         <form [formGroup]="registerForm" (ngSubmit)="onSubmit()"
+             class="relative border border-gray-800 bg-[#111111]/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl shadow-black/40">
+ 
++            <div *ngIf="invalidToken" class="text-center py-6 space-y-3">
++                <p class="text-red-400 text-sm font-medium">⚠ This invite link is invalid or has expired.</p>
++                <a routerLink="/auth/login" class="text-teal-400 text-sm hover:underline">Back to login</a>
++            </div>
++            
++            <!--Only give form if invite link is valid-->
++            <ng-container *ngIf="!invalidToken">
+             <!-- Step indicator -->
+             <div class="flex items-center justify-between mb-8">
+                 <ng-container *ngFor="let step of steps; let i = index; let last = last">
+@@ -271,7 +278,7 @@
+                 <a routerLink="/auth/login"
+                     class="text-teal-400 hover:text-teal-300 hover:underline transition-colors">Sign in</a>
+             </p>
+-
++            </ng-container>
+         </form>
+     </div>
+ </div>
+diff --git a/frontend/src/app/features/auth/register/register.component.ts b/frontend/src/app/features/auth/register/register.component.ts
+index 183e87e..925208a 100644
+--- a/frontend/src/app/features/auth/register/register.component.ts
++++ b/frontend/src/app/features/auth/register/register.component.ts
+@@ -123,7 +123,10 @@ export class RegisterComponent implements OnInit {
+     }
+ 
+     isCurrentStepValid(): boolean {
+-        return this.stepFields.every(f => this.registerForm.get(f)?.valid);
++        return this.stepFields.every(f =>{
++            const control = this.registerForm.get(f);                    
++            return control?.disabled || control?.valid;
++        });
+     }
+ 
+     shouldShowError(field: string): boolean {
+diff --git a/frontend/src/app/features/manufacturer/clients/clients.component.ts b/frontend/src/app/features/manufacturer/clients/clients.component.ts
+index 88ba2ab..7cd1f47 100644
+--- a/frontend/src/app/features/manufacturer/clients/clients.component.ts
++++ b/frontend/src/app/features/manufacturer/clients/clients.component.ts
+@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
+ import { FormsModule } from '@angular/forms';
+ import { CompanyService } from '../../../core/services/company.service';
+ import { HttpClient } from '@angular/common/http';
++import { ChangeDetectorRef } from '@angular/core';
++
+ 
+ @Component({
+     selector: 'app-mfg-clients',
+@@ -53,9 +55,9 @@ import { HttpClient } from '@angular/common/http';
+               class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">
+               {{ generatedLink ? 'Done' : 'Cancel' }}
+             </button>
+-            <button *ngIf="!generatedLink" (click)="generateInvite()"
+-              class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition">
+-              Generate Link
++            <button *ngIf="!generatedLink" (click)="generateInvite()" [disabled]="isGenerating"
++              class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
++              {{ isGenerating ? 'Generating...' : 'Generate Link' }}
+             </button>
+           </div>
+         </div>
+@@ -92,24 +94,38 @@ export class MfgClientsComponent implements OnInit {
+     inviteEmail = '';
+     generatedLink: string | null = null;
+     copied = false;
++    isGenerating = false;
++
+ 
+     constructor(
+         private companyService: CompanyService,
+-        private http: HttpClient
++        private http: HttpClient,
++        private cdr : ChangeDetectorRef
+     ) { }
+ 
+     ngOnInit() {
+-        this.companyService.getClients().subscribe({ next: d => this.clients = d || [], error: () => { } });
++        this.companyService.getApprovedClients().subscribe({
++           next: d => {
++            this.clients = d || [], 
++            this.cdr.detectChanges();
++           },
++          error: () => { } });
+     }
+ 
++
+     generateInvite() {
++        if (this.isGenerating) return;
++        this.isGenerating = true;
+         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
+-        this.http.post<any>('/api/auth/invite', { email, type: 'CLIENT' }).subscribe({
+-            next: (token: any) => {
+-                const rawToken = typeof token === 'string' ? token : token.token;
+-                this.generatedLink = `${window.location.origin}/auth/register?token=${rawToken}`;
++        this.http.post('/api/auth/invite', { email, type: 'CLIENT' }, { responseType: 'text' }).subscribe({
++            next: (token: string) => {
++                this.isGenerating = false;
++                this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
+             },
+-            error: (e: any) => alert(e.error?.message || 'Error generating invite')
++            error: (e: any) => {
++                this.isGenerating = false;
++                alert(e.error?.message || 'Error generating invite');
++            }
+         });
+     }
+ 
+diff --git a/frontend/src/app/features/manufacturer/onboarding/onboarding.component.ts b/frontend/src/app/features/manufacturer/onboarding/onboarding.component.ts
+index 0a9e4de..306bf24 100644
+--- a/frontend/src/app/features/manufacturer/onboarding/onboarding.component.ts
++++ b/frontend/src/app/features/manufacturer/onboarding/onboarding.component.ts
+@@ -1,4 +1,4 @@
+-import { Component, OnInit } from '@angular/core';
++import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+ import { CommonModule } from '@angular/common';
+ import { CompanyService } from '../../../core/services/company.service';
+ 
+@@ -70,12 +70,18 @@ import { CompanyService } from '../../../core/services/company.service';
+ export class MfgOnboardingComponent implements OnInit {
+     pending: any[] = [];
+ 
+-    constructor(private companyService: CompanyService) { }
++    constructor(
++      private companyService: CompanyService,
++      private cdr : ChangeDetectorRef  
++    ) { }
+ 
+     ngOnInit() { this.load(); }
+ 
+     load() {
+-        this.companyService.getPending().subscribe({ next: d => this.pending = d || [], error: () => { } });
++        this.companyService.getPending().subscribe({ next: d => {
++          this.pending = d || [];
++          this.cdr.detectChanges();}
++          , error: () => { } });
+     }
+ 
+     approve(id: number) {
+diff --git a/frontend/src/app/features/manufacturer/suppliers/suppliers.component.ts b/frontend/src/app/features/manufacturer/suppliers/suppliers.component.ts
+index d7b3f5c..accc5a9 100644
+--- a/frontend/src/app/features/manufacturer/suppliers/suppliers.component.ts
++++ b/frontend/src/app/features/manufacturer/suppliers/suppliers.component.ts
+@@ -5,6 +5,8 @@ import { CompanyService } from '../../../core/services/company.service';
+ import { SupplierComponentService } from '../../../core/services/supplier-component.service';
+ import { AuthService } from '../../../core/auth/auth.service';
+ import { HttpClient } from '@angular/common/http';
++import { ChangeDetectorRef } from '@angular/core';
++
+ 
+ @Component({
+     selector: 'app-mfg-suppliers',
+@@ -55,9 +57,9 @@ import { HttpClient } from '@angular/common/http';
+               class="px-4 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white transition">
+               {{ generatedLink ? 'Done' : 'Cancel' }}
+             </button>
+-            <button *ngIf="!generatedLink" (click)="generateInvite()"
+-              class="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-400 transition">
+-              Generate Link
++            <button *ngIf="!generatedLink" (click)="generateInvite()" [disabled]="isGenerating"
++              class="px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
++              {{ isGenerating ? 'Generating...' : 'Generate Link' }}
+             </button>
+           </div>
+         </div>
+@@ -122,15 +124,23 @@ export class MfgSuppliersComponent implements OnInit {
+     inviteEmail = '';
+     generatedLink: string | null = null;
+     copied = false;
++    isGenerating =false;
+ 
+     constructor(
+         private companyService: CompanyService,
+         private supplierCompService: SupplierComponentService,
+-        private http: HttpClient
++        private http: HttpClient,
++        private cdr: ChangeDetectorRef
++
+     ) { }
+ 
+     ngOnInit() {
+-        this.companyService.getSuppliers().subscribe({ next: d => this.suppliers = d || [], error: () => { } });
++        this.companyService.getApprovedSuppliers().subscribe({
++           next: d => {
++            this.suppliers = d || [], 
++            this.cdr.detectChanges();
++           },
++          error: () => { } });
+     }
+ 
+     selectSupplier(s: any) {
+@@ -142,13 +152,18 @@ export class MfgSuppliersComponent implements OnInit {
+     }
+ 
+     generateInvite() {
++        if (this.isGenerating) return;
++        this.isGenerating = true;
+         const email = this.inviteEmail.trim() || `invite-${Date.now()}@sparesy.com`;
+-        this.http.post<any>('/api/auth/invite', { email, type: 'SUPPLIER' }).subscribe({
+-            next: (token: any) => {
+-                const rawToken = typeof token === 'string' ? token : token.token;
+-                this.generatedLink = `${window.location.origin}/auth/register?token=${rawToken}`;
++        this.http.post('/api/auth/invite', { email, type: 'SUPPLIER' }, { responseType: 'text' }).subscribe({
++            next: (token: string) => {
++                this.isGenerating = false;
++                this.generatedLink = `${window.location.origin}/auth/register?token=${token}`;
+             },
+-            error: (e: any) => alert(e.error?.message || 'Error generating invite')
++            error: (e: any) => {
++                this.isGenerating = false;
++                alert(e.error?.message || 'Error generating invite');
++            }
+         });
+     }
+ 
+diff --git a/sparesy-progress.md b/sparesy-progress.md
+index 8787ce9..224848f 100644
+--- a/sparesy-progress.md
++++ b/sparesy-progress.md
+@@ -168,6 +168,8 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+ export PATH=$JAVA_HOME/bin:$PATH
+ cd sparesy/core-service
+ mvn spring-boot:run
++
++ sudo /usr/local/mysql/support-files/mysql.server start
+ ```
+ 
+ ---

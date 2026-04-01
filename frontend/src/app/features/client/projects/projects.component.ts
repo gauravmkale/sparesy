@@ -30,29 +30,33 @@ import { NotificationService } from '../../../core/services/notification.service
           <div>
             <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Project Name</label>
             <input type="text" [(ngModel)]="newProject.name" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
-            Project Quantity
+            
+            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium mt-3 block">Project Quantity</label>
             <input type="number" [(ngModel)]="newProject.quantity" min="1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.quantity < 1" class="text-red-400 text-xs mt-1">Quantity must be at least 1</p>
-            Layer Count
+            
+            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium mt-3 block">Layer Count</label>
             <input type="number" [(ngModel)]="newProject.layerCount" min="1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.layerCount < 1" class="text-red-400 text-xs mt-1">Layer count must be at least 1</p>
           </div>
           <div>
-            Board Thickness
+            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium block">Board Thickness</label>
             <input type="number" [(ngModel)]="newProject.boardThickness" min="0.1" step="0.1"
               class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1" />
             <p *ngIf="newProject.boardThickness < 0.1" class="text-red-400 text-xs mt-1">Thickness must be greater than 0</p>
-          <div class="col-span-2">
-            <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Surface Finish</label>
-            <select [(ngModel)]="newProject.surfaceFinish" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1">
-              <option value="HASL">HASL</option>
-              <option value="ENIG">ENIG</option>
-              <option value="OSP">OSP</option>
-              <option value="Immersion_Tin">Immersion Tin</option>
-              <option value="Immersion_Silver">Immersion Silver</option>
-            </select>
+            
+            <div class="mt-3">
+              <label class="text-xs text-gray-400 uppercase tracking-wider font-medium">Surface Finish</label>
+              <select [(ngModel)]="newProject.surfaceFinish" class="w-full bg-[#1a1a1a] border border-gray-700 text-white px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 mt-1">
+                <option value="HASL">HASL</option>
+                <option value="ENIG">ENIG</option>
+                <option value="OSP">OSP</option>
+                <option value="Immersion_Tin">Immersion Tin</option>
+                <option value="Immersion_Silver">Immersion Silver</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="flex justify-end mt-4">

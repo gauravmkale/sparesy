@@ -362,7 +362,7 @@ export class MfgProjectsComponent implements OnInit {
 
     filteredComponents = computed(() => {
         if (this.sourcingMode() === 'BULK') return this.allComponents();
-        if (this.newRequest.supplierCompanyId) return this.supplierSpecificComponents();
+        if (this.selectedSupplierId()) return this.supplierSpecificComponents();
         return [];
     });
 
