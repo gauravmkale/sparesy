@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal, inject, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../../core/services/project.service';
@@ -8,6 +8,7 @@ import { CompanyService } from '../../../core/services/company.service';
 import { ComponentService } from '../../../core/services/component.service';
 import { SupplierComponentService } from '../../../core/services/supplier-component.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ManufacturerStateService } from '../../../core/services/manufacturer-state.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -360,12 +361,6 @@ export class MfgProjectsComponent implements OnInit {
     baseCost = signal<number>(0);
     selectedSupplierId = signal<number | null>(null);
 
-    filteredComponents = computed(() => {
-        if (this.sourcingMode() === 'BULK') return this.allComponents();
-        if (this.selectedSupplierId()) return this.supplierSpecificComponents();
-        return [];
-    });
-
     private projectService = inject(ProjectService);
     private requestService = inject(RequestService);
     private quoteService = inject(QuoteService);
@@ -373,6 +368,28 @@ export class MfgProjectsComponent implements OnInit {
     private componentService = inject(ComponentService);
     private supplierCompService = inject(SupplierComponentService);
     private notif = inject(NotificationService);
+    private state = inject(ManufacturerStateService);
+
+    filteredComponents = computed(() => {
+        if (this.sourcingMode() === 'BULK') return this.allComponents();
+        if (this.selectedSupplierId()) return this.supplierSpecificComponents();
+        return [];
+    });
+
+    constructor() {
+      effect(() => {
+        const id = this.state.selectedProjectId();
+        const list = this.projects();
+        if (id && list.length > 0) {
+          const found = list.find(p => p.id === id);
+          if (found) {
+            this.selectProject(found);
+            // Clear selection in state so we don't force it every update
+            this.state.selectedProjectId.set(null); 
+          }
+        }
+      });
+    }
 
     ngOnInit() {
         this.loadProjects();
